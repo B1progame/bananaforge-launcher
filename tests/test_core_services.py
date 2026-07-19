@@ -69,6 +69,15 @@ def test_settings_atomic_roundtrip(tmp_path: Path) -> None:
     assert manager.load().language == "de"
 
 
+def test_settings_v0_migration_preserves_accent(tmp_path: Path) -> None:
+    path = tmp_path / "settings.json"
+    path.write_text('{"accent":"#3f8cff","dark_mode":false}')
+    settings = SettingsManager(path).load()
+    assert settings.schema_version == 1
+    assert settings.primary_accent == "#3f8cff"
+    assert settings.theme.value == "light"
+
+
 def test_theme_export_import_and_contrast(tmp_path: Path) -> None:
     path = tmp_path / "theme.bmltheme"
     ThemeManager.export_preset(Settings(), path)

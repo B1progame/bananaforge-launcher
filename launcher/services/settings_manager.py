@@ -18,9 +18,29 @@ class SettingsManager:
 
     def load(self) -> Settings:
         try:
-            return Settings.model_validate_json(self.path.read_text(encoding="utf-8"))
-        except (OSError, ValidationError, json.JSONDecodeError):
+            raw = json.loads(self.path.read_text(encoding="utf-8"))
+            if not isinstance(raw, dict):
+                raise ValueError("Settings root must be an object")
+            settings = Settings.model_validate(self._migrate(raw))
+            if raw != settings.model_dump(mode="json"):
+                self.save(settings)
+            return settings
+        except (OSError, ValidationError, json.JSONDecodeError, ValueError):
             return Settings()
+
+    @staticmethod
+    def _migrate(raw: dict[str, object]) -> dict[str, object]:
+        version = raw.get("schema_version", 0)
+        if not isinstance(version, int) or version > Settings().schema_version:
+            raise ValueError("Unsupported settings schema")
+        migrated = dict(raw)
+        if version == 0:
+            if "accent" in migrated and "primary_accent" not in migrated:
+                migrated["primary_accent"] = migrated.pop("accent")
+            if "dark_mode" in migrated and "theme" not in migrated:
+                migrated["theme"] = "dark" if migrated.pop("dark_mode") else "light"
+            migrated["schema_version"] = 1
+        return migrated
 
     def save(self, settings: Settings) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
