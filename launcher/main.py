@@ -20,7 +20,7 @@ def main() -> int:
         return 0
     try:
         from PySide6.QtCore import QUrl
-        from PySide6.QtGui import QGuiApplication
+        from PySide6.QtGui import QGuiApplication, QIcon
         from PySide6.QtQml import QQmlApplicationEngine
     except ImportError:
         print(
@@ -28,6 +28,10 @@ def main() -> int:
         )
         return 1
     app = QGuiApplication([])
+    app.setApplicationDisplayName(APP_NAME)
+    icon_path = Path(__file__).parent / "assets/icons/BloonsModLauncher.ico"
+    if icon_path.is_file():
+        app.setWindowIcon(QIcon(str(icon_path)))
     engine = QQmlApplicationEngine()
     engine.load(QUrl.fromLocalFile(str(Path(__file__).parent / "ui/Main.qml")))
     return app.exec() if engine.rootObjects() else 1
