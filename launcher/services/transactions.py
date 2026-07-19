@@ -7,7 +7,8 @@ from pathlib import Path
 
 class Transaction:
     def __init__(self, journal: Path) -> None:
-        self.journal, self.actions = journal, []
+        self.journal = journal
+        self.actions: list[dict[str, str]] = []
 
     def record(self, action: dict[str, str]) -> None:
         self.actions.append(action)

@@ -1,0 +1,13 @@
+# Reproducible top-level development constraints; resolve with pip for your platform.
+httpx==0.28.1
+keyring==25.6.0
+packaging==24.2
+platformdirs==4.3.6
+psutil==6.1.1
+pydantic==2.10.6
+PySide6==6.8.2
+pytest==8.3.4
+pytest-qt==4.4.0
+qasync==0.27.1
+ruff==0.9.4
+mypy==1.14.1

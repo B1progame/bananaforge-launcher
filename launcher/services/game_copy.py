@@ -58,7 +58,7 @@ async def copy_game(
 ) -> list[dict[str, object]]:
     ensure_copy_paths_safe(source, destination)
     manifest = build_manifest(source)
-    required = sum(int(item["size"]) for item in manifest)
+    required = sum(int(str(item["size"])) for item in manifest)
     free = shutil.disk_usage(
         destination.parent if destination.parent.exists() else source.parent
     ).free
@@ -76,7 +76,7 @@ async def copy_game(
             source_file, target = source / relative, staging / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             await asyncio.to_thread(shutil.copy2, source_file, target, follow_symlinks=False)
-            copied += int(entry["size"])
+            copied += int(str(entry["size"]))
             if progress is not None:
                 await progress.put(
                     CopyProgress(str(relative), index, len(manifest), copied, required)

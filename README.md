@@ -22,6 +22,12 @@ mypy launcher bootstrap
 
 Without the optional Qt dependency, `python -m launcher.main --headless` runs the setup/state engine. Build scripts are in `scripts/`.
 
+## User guides
+
+See [installation](docs/installation.md), [first run](docs/first-run.md), [profiles](docs/profiles.md), [updates](docs/updates.md), [safe mode](docs/safe-mode.md), [troubleshooting](docs/troubleshooting.md), and [development/release](docs/development.md).
+
+Branding sources live in `launcher/assets/branding`; rendered PNG/ICO files live in `launcher/assets/icons`. Compatibility data is stored in `compatibility/compatibility.json`. Add a catalogue by implementing `ModCatalogueProvider` in `launcher/services/mod_catalogue.py`; add a language as JSON under `launcher/translations/`.
+
 ## Architecture
 
 `launcher/services` contains I/O and policy; `launcher/models` validates persistent state; `launcher/ui` is a small QML shell; `bootstrap` is a separate verifier/updater. No component executes a downloaded file before a trusted hash is verified.

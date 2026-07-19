@@ -3,7 +3,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-import psutil
+import psutil  # type: ignore[import-untyped]
 
 from launcher.constants import EXPECTED_EXECUTABLE
 

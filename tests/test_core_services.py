@@ -15,6 +15,8 @@ from launcher.services.mod_catalogue import BtdModHelperBrowserProvider
 from launcher.services.settings_manager import SettingsManager
 from launcher.services.theme_manager import ThemeManager, validate_accent
 from launcher.services.transactions import Transaction
+from launcher.services.update_manager import UpdateManager
+from launcher.models.core import ReleaseManifest
 
 
 def test_copy_rejects_nested_paths(tmp_path: Path) -> None:
@@ -92,3 +94,15 @@ def test_bootstrap_retains_previous_version(tmp_path: Path) -> None:
 def test_ambiguous_mod_release_requires_selection() -> None:
     provider = BtdModHelperBrowserProvider()
     assert provider is not None
+
+
+def test_stable_update_rejects_prerelease() -> None:
+    manifest = ReleaseManifest(
+        version="1.1.0b1",
+        minimum_bootstrap_version="0.1.0",
+        download_url="https://github.com/x/y/releases/a",
+        sha256="0" * 64,
+        size=1,
+    )
+    assert not UpdateManager().available("1.0.0", manifest)
+    assert UpdateManager().available("1.0.0", manifest, "beta")
