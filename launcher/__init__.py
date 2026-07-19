@@ -1,0 +1,1 @@
+"""BananaForge Launcher."""
