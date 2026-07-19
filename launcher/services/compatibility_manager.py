@@ -42,7 +42,10 @@ class CompatibilityManager:
     ) -> CompatibilityState:
         if not all((btd6, melonloader, mod_helper)):
             return CompatibilityState.DEPENDENCY_MISSING
-        for item in self.load().get("combinations", []):
+        combinations = self.load().get("combinations", [])
+        if not isinstance(combinations, list):
+            return CompatibilityState.UNKNOWN
+        for item in combinations:
             if (
                 isinstance(item, dict)
                 and item.get("btd6") == btd6
