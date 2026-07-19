@@ -17,6 +17,10 @@ from launcher.services.theme_manager import ThemeManager, validate_accent
 from launcher.services.transactions import Transaction
 from launcher.services.update_manager import UpdateManager
 from launcher.models.core import ReleaseManifest
+from launcher.models.profile import ManagedProfile
+from launcher.services.diagnostics import DiagnosticItem, export_support_bundle
+from launcher.services.library_store import LibraryStore
+from launcher.services.official_path_manager import OfficialPathManager
 
 
 def test_copy_rejects_nested_paths(tmp_path: Path) -> None:
@@ -106,3 +110,30 @@ def test_stable_update_rejects_prerelease() -> None:
     )
     assert not UpdateManager().available("1.0.0", manifest)
     assert UpdateManager().available("1.0.0", manifest, "beta")
+
+
+def test_profile_library_store_roundtrip(tmp_path: Path) -> None:
+    store = LibraryStore(tmp_path / "data")
+    profile = ManagedProfile(name="Sandbox", mod_ids=["example.mod"])
+    store.save_profiles([profile])
+    assert store.profiles()[0].mod_ids == ["example.mod"]
+
+
+def test_official_path_clean_restore(tmp_path: Path) -> None:
+    game = tmp_path / "game"
+    game.mkdir()
+    (game / "BloonsTD6.exe").write_text("clean")
+    manager = OfficialPathManager(game, tmp_path / "state")
+    manager.create_verified_clean_backup()
+    (game / "BloonsTD6.exe").write_text("managed")
+    manager.restore_clean()
+    assert (game / "BloonsTD6.exe").read_text() == "clean"
+
+
+def test_support_bundle_redacts_secrets(tmp_path: Path) -> None:
+    bundle = export_support_bundle(
+        tmp_path / "support.json",
+        [DiagnosticItem("ok", True, "fine")],
+        "Bearer secret gho_abcdefgh",
+    )
+    assert "secret" not in bundle.read_text()
