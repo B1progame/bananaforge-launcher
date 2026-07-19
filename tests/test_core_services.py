@@ -29,6 +29,7 @@ from bootstrap.secure_download import download_verified
 from launcher.services.installation_tester import InstallationTester
 from launcher.models.compatibility import CompatibilityState
 from launcher.services.compatibility_manager import CompatibilityManager
+from launcher.services.windows_integration import _ps_quote
 
 
 def test_copy_rejects_nested_paths(tmp_path: Path) -> None:
@@ -259,6 +260,10 @@ def test_compatibility_keeps_unlisted_versions_unknown(tmp_path: Path) -> None:
     assert manager.melonloader_state("0.5") is CompatibilityState.SUPPORTED
     assert manager.melonloader_state("0.4") is CompatibilityState.BLOCKED
     assert manager.melonloader_state("9.9") is CompatibilityState.UNKNOWN
+
+
+def test_powershell_quoting_does_not_allow_literal_breakout() -> None:
+    assert _ps_quote("C:/Bob's Launcher.exe") == "'C:/Bob''s Launcher.exe'"
 
 
 def test_log_monitor_detects_loader_helper_and_fatal(tmp_path: Path) -> None:
