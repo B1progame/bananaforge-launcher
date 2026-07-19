@@ -35,5 +35,6 @@ def test_redaction() -> None:
 
 def test_manual_validation(tmp_path: Path) -> None:
     (tmp_path / "BloonsTD6.exe").write_bytes(b"x")
+    (tmp_path / "BloonsTD6_Data").mkdir()
     result = validate_game(tmp_path, Storefront.MANUAL)
     assert result.valid and result.mode is InstallationMode.MANAGED_COPY

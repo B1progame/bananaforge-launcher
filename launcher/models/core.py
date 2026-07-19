@@ -32,6 +32,11 @@ class GameInstallation(BaseModel):
     valid: bool = False
     mode: InstallationMode = InstallationMode.UNSUPPORTED
     reason: str = "Not validated"
+    game_version: str | None = None
+    size_bytes: int = 0
+    last_modified: datetime | None = None
+    game_running: bool = False
+    likely_updating: bool = False
 
 
 class ReleaseAsset(BaseModel):
