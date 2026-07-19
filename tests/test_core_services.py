@@ -33,6 +33,7 @@ from launcher.services.windows_integration import _ps_quote
 from launcher.services.notification_service import NotificationLevel, NotificationService
 from launcher.services.backup_manager import BackupManager
 from launcher.services.sync_manager import SyncManager
+from scripts.generate_release_manifest import build_manifest
 
 
 def test_copy_rejects_nested_paths(tmp_path: Path) -> None:
@@ -295,6 +296,17 @@ def test_sync_preserves_managed_mods_and_updates_game_files(tmp_path: Path) -> N
     assert "BloonsTD6.exe" in result.changed_files
     assert (managed / "BloonsTD6.exe").read_text() == "new"
     assert (managed / "Mods/Personal.dll").read_text() == "keep"
+
+
+def test_release_manifest_uses_zip_hash_and_release_url(tmp_path: Path) -> None:
+    package = tmp_path / "BananaForgeLauncher.zip"
+    package.write_bytes(b"release")
+    manifest = build_manifest(package, "v1.2.3", "owner/project")
+    assert manifest["version"] == "1.2.3"
+    assert (
+        manifest["download_url"]
+        == "https://github.com/owner/project/releases/download/v1.2.3/BananaForgeLauncher.zip"
+    )
 
 
 def test_log_monitor_detects_loader_helper_and_fatal(tmp_path: Path) -> None:
