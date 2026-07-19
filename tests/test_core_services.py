@@ -31,6 +31,8 @@ from launcher.models.compatibility import CompatibilityState
 from launcher.services.compatibility_manager import CompatibilityManager
 from launcher.services.windows_integration import _ps_quote
 from launcher.services.notification_service import NotificationLevel, NotificationService
+from launcher.services.backup_manager import BackupManager
+from launcher.services.sync_manager import SyncManager
 
 
 def test_copy_rejects_nested_paths(tmp_path: Path) -> None:
@@ -275,6 +277,24 @@ def test_recoverable_notification_hides_traceback_from_primary_text() -> None:
     assert item.technical_details == "ValueError: unsafe path"
     service.dismiss(item.id)
     assert service.active() == []
+
+
+def test_sync_preserves_managed_mods_and_updates_game_files(tmp_path: Path) -> None:
+    source, managed = tmp_path / "source", tmp_path / "managed"
+    source.mkdir()
+    managed.mkdir()
+    (source / "BloonsTD6.exe").write_text("new")
+    (source / "BloonsTD6_Data").mkdir()
+    (managed / "BloonsTD6.exe").write_text("old")
+    (managed / "Mods").mkdir()
+    (managed / "Mods/Personal.dll").write_text("keep")
+    previous = [{"relative_path": "BloonsTD6.exe", "size": 3, "modified": "old"}]
+    result = SyncManager().synchronize(
+        source, managed, previous, BackupManager(tmp_path / "backups")
+    )
+    assert "BloonsTD6.exe" in result.changed_files
+    assert (managed / "BloonsTD6.exe").read_text() == "new"
+    assert (managed / "Mods/Personal.dll").read_text() == "keep"
 
 
 def test_log_monitor_detects_loader_helper_and_fatal(tmp_path: Path) -> None:
