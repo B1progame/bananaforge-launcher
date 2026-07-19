@@ -16,11 +16,12 @@ from launcher.services.settings_manager import SettingsManager
 from launcher.services.theme_manager import ThemeManager, validate_accent
 from launcher.services.transactions import Transaction
 from launcher.services.update_manager import UpdateManager
-from launcher.models.core import ReleaseManifest
+from launcher.models.core import ReleaseManifest, Storefront
 from launcher.models.profile import ManagedProfile
 from launcher.services.diagnostics import DiagnosticItem, export_support_bundle
 from launcher.services.library_store import LibraryStore
 from launcher.services.official_path_manager import OfficialPathManager
+from launcher.services.setup_coordinator import SetupCoordinator, SetupStage
 
 
 def test_copy_rejects_nested_paths(tmp_path: Path) -> None:
@@ -137,3 +138,21 @@ def test_support_bundle_redacts_secrets(tmp_path: Path) -> None:
         "Bearer secret gho_abcdefgh",
     )
     assert "secret" not in bundle.read_text()
+
+
+def test_setup_requires_safety_acknowledgement(tmp_path: Path) -> None:
+    coordinator = SetupCoordinator(LibraryStore(tmp_path / "store"))
+    instance, status = asyncio.run(
+        coordinator.create_instance(
+            "Default", Storefront.MANUAL, tmp_path / "source", tmp_path / "managed", asyncio.Event()
+        )
+    )
+    assert instance is None
+    assert status.stage is SetupStage.WARNING
+
+
+def test_setup_creates_profile(tmp_path: Path) -> None:
+    coordinator = SetupCoordinator(LibraryStore(tmp_path / "store"))
+    profile, status = coordinator.create_first_profile()
+    assert profile.name == "Default"
+    assert status.stage is SetupStage.TEST
