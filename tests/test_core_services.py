@@ -23,6 +23,7 @@ from launcher.services.library_store import LibraryStore
 from launcher.services.official_path_manager import OfficialPathManager
 from launcher.services.setup_coordinator import SetupCoordinator, SetupStage
 from launcher.services.profile_manager import ProfileManager
+from launcher.services.mod_manager import ModManager
 
 
 def test_copy_rejects_nested_paths(tmp_path: Path) -> None:
@@ -186,3 +187,22 @@ def test_profile_staging_removes_disabled_mods(tmp_path: Path) -> None:
     )
     assert not (mods / "First.dll").exists()
     assert (mods / "Second.dll").exists()
+
+
+def test_official_mod_install_stays_in_library(tmp_path: Path) -> None:
+    download = tmp_path / "Example.dll"
+    download.write_bytes(b"verified bytes")
+    mod = ModManager(tmp_path / "library").install_official(download, "owner/example", "1.2.3")
+    assert mod.security_state.value == "official"
+    assert mod.library_path == tmp_path / "library/owner.example/1.2.3/Example.dll"
+    assert not (tmp_path / "instance/Mods/Example.dll").exists()
+
+
+def test_duplicate_dll_detection_is_case_insensitive(tmp_path: Path) -> None:
+    mods = tmp_path / "Mods"
+    mods.mkdir()
+    (mods / "Example.dll").write_bytes(b"a")
+    nested = mods / "nested"
+    nested.mkdir()
+    (nested / "example.DLL").write_bytes(b"b")
+    assert "example.dll" in ModManager.duplicate_dlls(mods)
