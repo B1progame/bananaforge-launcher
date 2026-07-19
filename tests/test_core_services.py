@@ -24,6 +24,7 @@ from launcher.services.official_path_manager import OfficialPathManager
 from launcher.services.setup_coordinator import SetupCoordinator, SetupStage
 from launcher.services.profile_manager import ProfileManager
 from launcher.services.mod_manager import ModManager
+from bootstrap.secure_download import download_verified
 
 
 def test_copy_rejects_nested_paths(tmp_path: Path) -> None:
@@ -206,3 +207,15 @@ def test_duplicate_dll_detection_is_case_insensitive(tmp_path: Path) -> None:
     nested.mkdir()
     (nested / "example.DLL").write_bytes(b"b")
     assert "example.dll" in ModManager.duplicate_dlls(mods)
+
+
+def test_bootstrap_rejects_untrusted_download_url(tmp_path: Path) -> None:
+    with pytest.raises(ValueError):
+        asyncio.run(
+            download_verified(
+                "https://bad.example/app.zip",
+                tmp_path / "app.zip",
+                "0" * 64,
+                "https://github.com/B1progame/bananaforge-launcher/releases/download/",
+            )
+        )
