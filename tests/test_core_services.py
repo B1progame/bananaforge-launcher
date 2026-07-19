@@ -22,6 +22,7 @@ from launcher.services.diagnostics import DiagnosticItem, export_support_bundle
 from launcher.services.library_store import LibraryStore
 from launcher.services.official_path_manager import OfficialPathManager
 from launcher.services.setup_coordinator import SetupCoordinator, SetupStage
+from launcher.services.profile_manager import ProfileManager
 
 
 def test_copy_rejects_nested_paths(tmp_path: Path) -> None:
@@ -156,3 +157,32 @@ def test_setup_creates_profile(tmp_path: Path) -> None:
     profile, status = coordinator.create_first_profile()
     assert profile.name == "Default"
     assert status.stage is SetupStage.TEST
+
+
+def test_profile_duplicate_export_import(tmp_path: Path) -> None:
+    original = ManagedProfile(name="Boss Practice", mod_ids=["example.mod"])
+    copy = ProfileManager.duplicate(original, "Boss Practice Copy")
+    assert copy.id != original.id
+    export = ProfileManager.export_profile(
+        original, {"example.mod": "owner/example"}, tmp_path / "profile.bmlprofile"
+    )
+    imported, sources = ProfileManager.import_profile(export)
+    assert imported.id != original.id
+    assert sources == {"example.mod": "owner/example"}
+
+
+def test_profile_staging_removes_disabled_mods(tmp_path: Path) -> None:
+    library = tmp_path / "library"
+    library.mkdir()
+    first, second = library / "First.dll", library / "Second.dll"
+    first.write_bytes(b"one")
+    second.write_bytes(b"two")
+    mods = tmp_path / "instance/Mods"
+    ProfileManager.stage_managed(
+        ManagedProfile(name="One", mod_ids=["one"]), {"one": first, "two": second}, mods
+    )
+    ProfileManager.stage_managed(
+        ManagedProfile(name="Two", mod_ids=["two"]), {"one": first, "two": second}, mods
+    )
+    assert not (mods / "First.dll").exists()
+    assert (mods / "Second.dll").exists()
