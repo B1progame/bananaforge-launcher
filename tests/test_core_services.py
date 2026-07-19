@@ -30,6 +30,7 @@ from launcher.services.installation_tester import InstallationTester
 from launcher.models.compatibility import CompatibilityState
 from launcher.services.compatibility_manager import CompatibilityManager
 from launcher.services.windows_integration import _ps_quote
+from launcher.services.notification_service import NotificationLevel, NotificationService
 
 
 def test_copy_rejects_nested_paths(tmp_path: Path) -> None:
@@ -264,6 +265,16 @@ def test_compatibility_keeps_unlisted_versions_unknown(tmp_path: Path) -> None:
 
 def test_powershell_quoting_does_not_allow_literal_breakout() -> None:
     assert _ps_quote("C:/Bob's Launcher.exe") == "'C:/Bob''s Launcher.exe'"
+
+
+def test_recoverable_notification_hides_traceback_from_primary_text() -> None:
+    service = NotificationService()
+    item = service.user_error("Copy failed", ValueError("unsafe path"))
+    assert item.level is NotificationLevel.ERROR
+    assert "unsafe path" not in item.message
+    assert item.technical_details == "ValueError: unsafe path"
+    service.dismiss(item.id)
+    assert service.active() == []
 
 
 def test_log_monitor_detects_loader_helper_and_fatal(tmp_path: Path) -> None:
