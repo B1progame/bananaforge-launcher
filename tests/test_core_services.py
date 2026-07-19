@@ -11,6 +11,7 @@ from launcher.services.game_copy import (
     copy_game,
     ensure_copy_paths_safe,
 )
+from launcher.models.mod import CatalogueMod, ModFilters
 from launcher.services.mod_catalogue import BtdModHelperBrowserProvider
 from launcher.services.settings_manager import SettingsManager
 from launcher.services.theme_manager import ThemeManager, validate_accent
@@ -220,6 +221,21 @@ def test_bootstrap_rejects_untrusted_download_url(tmp_path: Path) -> None:
                 "https://github.com/B1progame/bananaforge-launcher/releases/download/",
             )
         )
+
+
+def test_catalogue_offline_cache_filters_and_pages(tmp_path: Path) -> None:
+    provider = BtdModHelperBrowserProvider(tmp_path / "catalogue.json")
+    provider._cache_write(
+        [
+            CatalogueMod(
+                id="a", name="Fast Darts", author="alice", repository="alice/a", tags=["qol"]
+            ),
+            CatalogueMod(
+                id="b", name="More Darts", author="bob", repository="bob/b", tags=["sandbox"]
+            ),
+        ]
+    )
+    assert [item.id for item in provider._cache_read("darts", ModFilters(author="alice"))] == ["a"]
 
 
 def test_log_monitor_detects_loader_helper_and_fatal(tmp_path: Path) -> None:
