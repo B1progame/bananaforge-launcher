@@ -25,6 +25,7 @@ from launcher.services.setup_coordinator import SetupCoordinator, SetupStage
 from launcher.services.profile_manager import ProfileManager
 from launcher.services.mod_manager import ModManager
 from bootstrap.secure_download import download_verified
+from launcher.services.installation_tester import InstallationTester
 
 
 def test_copy_rejects_nested_paths(tmp_path: Path) -> None:
@@ -219,3 +220,12 @@ def test_bootstrap_rejects_untrusted_download_url(tmp_path: Path) -> None:
                 "https://github.com/B1progame/bananaforge-launcher/releases/download/",
             )
         )
+
+
+def test_log_monitor_detects_loader_helper_and_fatal(tmp_path: Path) -> None:
+    log = tmp_path / "MelonLoader/Latest.log"
+    log.parent.mkdir()
+    log.write_text("MelonLoader started\nBTD Mod Helper ready\nLoaded Mod A\nFATAL bad patch")
+    melon, helper, mods, fatal = InstallationTester._inspect_logs([log])
+    assert melon and helper and mods == 1
+    assert fatal == ["FATAL bad patch"]
