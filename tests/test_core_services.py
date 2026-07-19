@@ -27,6 +27,8 @@ from launcher.services.profile_manager import ProfileManager
 from launcher.services.mod_manager import ModManager
 from bootstrap.secure_download import download_verified
 from launcher.services.installation_tester import InstallationTester
+from launcher.models.compatibility import CompatibilityState
+from launcher.services.compatibility_manager import CompatibilityManager
 
 
 def test_copy_rejects_nested_paths(tmp_path: Path) -> None:
@@ -245,6 +247,18 @@ def test_catalogue_offline_cache_filters_and_pages(tmp_path: Path) -> None:
         ]
     )
     assert [item.id for item in provider._cache_read("darts", ModFilters(author="alice"))] == ["a"]
+
+
+def test_compatibility_keeps_unlisted_versions_unknown(tmp_path: Path) -> None:
+    manifest = tmp_path / "compatibility.json"
+    manifest.write_text(
+        '{"schema_version":1,"melonloader":{"recommended":"0.6","supported":["0.5"],"blocked":["0.4"]},"combinations":[]}'
+    )
+    manager = CompatibilityManager(manifest)
+    assert manager.melonloader_state("0.6") is CompatibilityState.VERIFIED
+    assert manager.melonloader_state("0.5") is CompatibilityState.SUPPORTED
+    assert manager.melonloader_state("0.4") is CompatibilityState.BLOCKED
+    assert manager.melonloader_state("9.9") is CompatibilityState.UNKNOWN
 
 
 def test_log_monitor_detects_loader_helper_and_fatal(tmp_path: Path) -> None:
