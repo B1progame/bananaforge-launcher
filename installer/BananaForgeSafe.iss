@@ -2,7 +2,7 @@
 ; It deliberately does not execute PowerShell, Git, npm, or downloaded code.
 
 #define AppName "BananaForge"
-#define AppVersion "0.2.1"
+#define AppVersion "0.2.3"
 #define AppExeName "BananaForge.exe"
 
 [Setup]
@@ -11,12 +11,12 @@ AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher=BananaForge
 AppComments=Local BTD6 mod workspace and browser
-DefaultDirName={autopf}\BananaForge
+DefaultDirName={localappdata}\Programs\BananaForge
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
-PrivilegesRequired=admin
+PrivilegesRequired=lowest
 OutputDir=..\desktop\dist
-OutputBaseFilename=BananaForge-Safe-Setup-0.2.1
+OutputBaseFilename=BananaForge-Safe-Setup-0.2.3
 SetupIconFile=..\desktop\assets\bananaforge.ico
 UninstallDisplayName={#AppName}
 UninstallDisplayIcon={app}\{#AppExeName}

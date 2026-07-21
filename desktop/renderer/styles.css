@@ -140,6 +140,7 @@ h1 { margin-bottom: 7px; font-size: 34px; line-height: 1.1; letter-spacing: -.8p
 label { display: block; margin: 20px 0 7px; color: #9cb0c9; font-size: 11px; font-weight: 700; }
 input { height: 42px; border: 1px solid #2a4564; border-radius: 10px; background: #091624; color: #e7eef8; padding: 0 12px; outline: none; }
 input:focus { border-color: #c98626; box-shadow: 0 0 0 3px #ffad2712; }
+.fixed-path { min-height: 40px; display: flex; align-items: center; padding: 0 12px; border: 1px solid #2c4f72; border-radius: 10px; color: #a8b8c9; background: #09182a; font-size: 13px; }
 .settings-card > input { width: 100%; }
 .field-row { display: flex; gap: 8px; }.field-row input { flex: 1; min-width: 0; }.field-row button { border: 1px solid #315171; border-radius: 10px; background: #172a42; color: #c6d6e8; padding: 0 13px; }
 .inline-actions { display: flex; gap: 8px; margin-top: 11px; }

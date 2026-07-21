@@ -181,7 +181,6 @@ function fillSettings() {
   $("#gamePath").value = appState.configuredGamePath || appState.detectedGame || "";
   $("#instancePath").value = appState.configuredInstancePath || "";
   $("#melonLoaderPath").value = appState.settings.melonLoaderPath || "";
-  $("#downloadPath").value = appState.settings.downloadPath || "";
   $("#launchArguments").value = appState.settings.launchArguments || "";
 }
 
@@ -269,6 +268,16 @@ function renderDownloads(downloads = []) {
     show.textContent = "Show";
     show.onclick = () => api.showPath(item.path);
     row.appendChild(show);
+    if (item.state === "completed" && item.name.toLowerCase().endsWith(".dll")) {
+      const install = document.createElement("button");
+      install.className = "secondary";
+      install.textContent = "Install mod";
+      install.onclick = async () => {
+        const result = await safe(() => api.installDownloadedMod(item.path), "Mod installed into the active profile");
+        if (result) { await refreshMods(); await refreshState(); }
+      };
+      row.appendChild(install);
+    }
     root.appendChild(row);
   }
 }
@@ -282,7 +291,7 @@ async function saveSettings() {
     gamePath: $("#gamePath").value.trim(),
     instancePath: $("#instancePath").value.trim(),
     melonLoaderPath: $("#melonLoaderPath").value.trim(),
-    downloadPath: $("#downloadPath").value.trim(),
+    downloadPath: "",
     launchArguments: $("#launchArguments").value.trim()
   };
   await safe(() => api.saveSettings(settings), "Settings saved");
@@ -337,7 +346,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   $("#runMelonCard").onclick = () => appState.settings.melonLoaderPath
     ? safe(() => api.launchMelonLoader(), "MelonLoader installer opened")
     : downloadMelonLoader();
-  $("#runMelonSettings").onclick = () => safe(() => api.launchMelonLoader(), "MelonLoader installer opened");
+  $("#runMelonSettings").onclick = () => appState.settings.melonLoaderPath
+    ? safe(() => api.launchMelonLoader(), "MelonLoader installer opened")
+    : downloadMelonLoader();
   $("#createInstance").onclick = async () => {
     const result = await safe(() => api.createManagedCopy(), "Managed BTD6 copy created");
     if (result && !result.canceled) await refreshState();
@@ -391,16 +402,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const value = await api.chooseMelonLoader();
     if (value) $("#melonLoaderPath").value = value;
   };
-  $("#chooseDownloads").onclick = async () => {
-    const value = await api.chooseFolder("Choose browser download folder");
-    if (value) $("#downloadPath").value = value;
-  };
   $("#saveSettings").onclick = saveSettings;
   $("#findMelon").onclick = downloadMelonLoader;
   $("#openDownloadsFolder").onclick = () => {
     const latest = appState.downloads[0];
     if (latest) api.showPath(latest.path);
-    else toast("Download a file first, or choose a download folder in Settings.");
+    else toast("Download a file first. Browser downloads go to Windows Downloads\\BananaForge.");
   };
 
   api.onDownloadsChanged((downloads) => {

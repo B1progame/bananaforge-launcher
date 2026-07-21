@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld("bananaforge", {
   activateProfile: (id) => ipcRenderer.invoke("profiles:activate", id),
   deleteProfile: (id) => ipcRenderer.invoke("profiles:delete", id),
   installMods: () => ipcRenderer.invoke("mods:install"),
+  installDownloadedMod: (file) => ipcRenderer.invoke("mods:install-download", file),
   listMods: () => ipcRenderer.invoke("mods:list"),
   removeMod: (name) => ipcRenderer.invoke("mods:remove", name),
   showPath: (target) => ipcRenderer.invoke("path:show", target),

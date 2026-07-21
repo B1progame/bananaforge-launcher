@@ -8,6 +8,7 @@ let mainWindow;
 let statePath;
 let state;
 const melonLoaderDownloads = new Set();
+const registeredDownloadSessions = new Set();
 
 const defaultState = () => ({
   settings: {
@@ -55,6 +56,10 @@ function applyInstallerPaths() {
 
 function profileRoot(profileId = state.activeProfileId) {
   return path.join(app.getPath("userData"), "profiles", profileId, "mods");
+}
+
+function downloadRoot() {
+  return path.join(app.getPath("downloads"), "BananaForge");
 }
 
 function gameRoot() {
@@ -154,6 +159,55 @@ function syncActiveProfile() {
   return files;
 }
 
+function installModFile(file) {
+  if (!file || !fs.existsSync(file)) throw new Error("The downloaded mod file is no longer available.");
+  const destination = profileRoot();
+  const name = safeModName(file);
+  fs.mkdirSync(destination, { recursive: true });
+  fs.copyFileSync(file, path.join(destination, name));
+  syncActiveProfile();
+  return fs.readdirSync(destination).filter((entry) => entry.toLowerCase().endsWith(".dll"));
+}
+
+function registerDownloadHandler(targetSession) {
+  if (registeredDownloadSessions.has(targetSession)) return;
+  registeredDownloadSessions.add(targetSession);
+  targetSession.on("will-download", (_event, item) => {
+    const id = crypto.randomUUID();
+    const root = downloadRoot();
+    fs.mkdirSync(root, { recursive: true });
+    const fileName = path.basename(item.getFilename());
+    const savePath = path.join(root, fileName);
+    const isMelonLoader = melonLoaderDownloads.has(item.getURL()) || melonLoaderDownloads.has(fileName);
+    item.setSavePath(savePath);
+    const record = { id, name: fileName, path: savePath, url: item.getURL(), received: 0, total: item.getTotalBytes(), state: "progressing", startedAt: new Date().toISOString() };
+    state.downloads.unshift(record);
+    saveState();
+    send("downloads:changed", state.downloads);
+    item.on("updated", (_updateEvent, downloadState) => {
+      record.received = item.getReceivedBytes();
+      record.total = item.getTotalBytes();
+      record.state = downloadState;
+      send("downloads:changed", state.downloads);
+    });
+    item.once("done", (_doneEvent, downloadState) => {
+      record.received = item.getReceivedBytes();
+      record.total = item.getTotalBytes();
+      record.state = downloadState;
+      if (isMelonLoader) {
+        melonLoaderDownloads.delete(record.url);
+        melonLoaderDownloads.delete(record.name);
+        if (downloadState === "completed") {
+          state.settings.melonLoaderPath = savePath;
+          send("melonloader:downloaded", { path: savePath, name: record.name });
+        }
+      }
+      saveState();
+      send("downloads:changed", state.downloads);
+    });
+  });
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1480,
@@ -190,44 +244,8 @@ app.whenReady().then(() => {
   applyInstallerPaths();
   createWindow();
 
-  session.defaultSession.on("will-download", (_event, item) => {
-    const id = crypto.randomUUID();
-    const downloadRoot = state.settings.downloadPath || app.getPath("downloads");
-    fs.mkdirSync(downloadRoot, { recursive: true });
-    const savePath = path.join(downloadRoot, path.basename(item.getFilename()));
-    item.setSavePath(savePath);
-    const record = {
-      id,
-      name: path.basename(savePath),
-      path: savePath,
-      url: item.getURL(),
-      received: 0,
-      total: item.getTotalBytes(),
-      state: "progressing",
-      startedAt: new Date().toISOString()
-    };
-    state.downloads.unshift(record);
-    saveState();
-    send("downloads:changed", state.downloads);
-
-    item.on("updated", (_updateEvent, downloadState) => {
-      record.received = item.getReceivedBytes();
-      record.total = item.getTotalBytes();
-      record.state = downloadState;
-      send("downloads:changed", state.downloads);
-    });
-    item.once("done", (_doneEvent, downloadState) => {
-      record.received = item.getReceivedBytes();
-      record.total = item.getTotalBytes();
-      record.state = downloadState;
-      if (melonLoaderDownloads.delete(record.url) && downloadState === "completed") {
-        state.settings.melonLoaderPath = savePath;
-        send("melonloader:downloaded", { path: savePath, name: record.name });
-      }
-      saveState();
-      send("downloads:changed", state.downloads);
-    });
-  });
+  registerDownloadHandler(session.defaultSession);
+  registerDownloadHandler(session.fromPartition("persist:bananaforge-browser"));
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -368,6 +386,7 @@ ipcMain.handle("melonloader:download", async () => {
   );
   if (!asset) throw new Error("The latest official MelonLoader release did not include a Windows installer.");
   melonLoaderDownloads.add(asset.browser_download_url);
+  melonLoaderDownloads.add(asset.name);
   session.defaultSession.downloadURL(asset.browser_download_url);
   return { name: asset.name, version: release.tag_name || "latest" };
 });
@@ -406,15 +425,11 @@ ipcMain.handle("mods:install", async () => {
     filters: [{ name: "BTD6 mod DLL", extensions: ["dll"] }]
   });
   if (result.canceled) return [];
-  const destination = profileRoot();
-  fs.mkdirSync(destination, { recursive: true });
-  for (const file of result.filePaths) {
-    const name = safeModName(file);
-    fs.copyFileSync(file, path.join(destination, name));
-  }
-  syncActiveProfile();
-  return fs.readdirSync(destination).filter((file) => file.toLowerCase().endsWith(".dll"));
+  for (const file of result.filePaths) installModFile(file);
+  return fs.readdirSync(profileRoot()).filter((file) => file.toLowerCase().endsWith(".dll"));
 });
+
+ipcMain.handle("mods:install-download", (_event, file) => installModFile(file));
 
 ipcMain.handle("mods:list", () => {
   const root = profileRoot();

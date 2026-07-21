@@ -1,6 +1,6 @@
 {
   "name": "bananaforge-modloader",
-  "version": "0.2.1",
+  "version": "0.2.3",
   "description": "BTD6 mod profile manager, launcher, and Chromium mod browser",
   "main": "main.js",
   "author": "BananaForge",
