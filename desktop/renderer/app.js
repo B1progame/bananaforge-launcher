@@ -66,6 +66,18 @@ function normalizeAddress(input) {
   return `https://www.google.com/search?q=${encodeURIComponent(value)}`;
 }
 
+function isDownloadLink(url) {
+  try {
+    const decoded = decodeURIComponent(url);
+    return /\.(dll|zip|7z|rar|exe)(?:[?#]|$)/i.test(decoded) ||
+      /github\.com\/[^/]+\/[^/]+\/releases\/download\//i.test(decoded) ||
+      /api\.github\.com\/repos\/[^/]+\/[^/]+\/releases\/assets\/\d+/i.test(decoded) ||
+      /githubusercontent\.com\/.*\/(releases|assets)\//i.test(decoded);
+  } catch {
+    return false;
+  }
+}
+
 function activeWebview() {
   return tabs.find((tab) => tab.id === activeTabId)?.view;
 }
@@ -103,7 +115,15 @@ function bindWebview(tab) {
     if (tab.id === activeTabId) $("#browserReload").textContent = "↻";
     sync();
   });
-  tab.view.addEventListener("new-window", (event) => addTab(event.url));
+  tab.view.addEventListener("new-window", (event) => {
+    if (isDownloadLink(event.url)) {
+      event.preventDefault();
+      tab.view.downloadURL(event.url);
+      toast("Mod download started. It will appear in Downloads.");
+      return;
+    }
+    addTab(event.url);
+  });
 }
 
 function activateTab(id) {
