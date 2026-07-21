@@ -42,6 +42,7 @@ Require-Command npm
 
 $buildRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("BananaForge-build-" + [guid]::NewGuid().ToString("N"))
 $desktopRoot = Join-Path $buildRoot "desktop"
+$launchArguments = @()
 
 try {
     Show-Message "BananaForge will download its public source, build the Chromium modloader locally, then remove the temporary source folder." "BananaForge installer"
@@ -77,6 +78,7 @@ try {
             if ($sourcePath -eq $managedPath) { throw "The managed copy must have a different folder." }
             New-Item -ItemType Directory -Path $ManagedCopyRoot -Force | Out-Null
             Get-ChildItem -LiteralPath $Btd6Source -Force | Copy-Item -Destination $ManagedCopyRoot -Recurse -Force
+            $launchArguments = @("--game-path", (Join-Path $sourcePath "BloonsTD6.exe"), "--instance-path", $managedPath)
         }
     }
 
@@ -85,7 +87,7 @@ try {
         Start-Process "https://github.com/LavaGang/MelonLoader/releases/latest"
     }
 
-    Start-Process -FilePath (Join-Path $InstallRoot "BananaForge.exe")
+    Start-Process -FilePath (Join-Path $InstallRoot "BananaForge.exe") -ArgumentList $launchArguments
 }
 finally {
     if (Test-Path $buildRoot) { Remove-Item -LiteralPath $buildRoot -Recurse -Force }

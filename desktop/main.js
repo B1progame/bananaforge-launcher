@@ -38,6 +38,19 @@ function saveState() {
   fs.writeFileSync(statePath, JSON.stringify(state, null, 2), "utf8");
 }
 
+function argumentValue(name) {
+  const index = process.argv.indexOf(name);
+  return index >= 0 ? process.argv[index + 1] || "" : "";
+}
+
+function applyInstallerPaths() {
+  const original = argumentValue("--game-path");
+  const managed = argumentValue("--instance-path");
+  if (original) state.settings.gamePath = original;
+  if (managed) state.settings.instancePath = managed;
+  if (original || managed) saveState();
+}
+
 function profileRoot(profileId = state.activeProfileId) {
   return path.join(app.getPath("userData"), "profiles", profileId, "mods");
 }
@@ -164,6 +177,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   readState();
+  applyInstallerPaths();
   createWindow();
 
   session.defaultSession.on("will-download", (_event, item) => {
