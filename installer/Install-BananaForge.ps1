@@ -13,13 +13,31 @@ param(
     [string]$Repository = "https://github.com/B1progame/bananaforge-launcher.git",
     [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA "BananaForge"),
     [string]$Btd6Source = "",
-    [string]$ManagedCopyRoot = (Join-Path $env:LOCALAPPDATA "BananaForge\Instances\Main")
+    [string]$ManagedCopyRoot = (Join-Path $env:LOCALAPPDATA "BananaForge\Instances\Main"),
+    [switch]$NonInteractive,
+    [switch]$NoLaunch,
+    [switch]$SkipMelonLoader,
+    [switch]$SkipManagedCopy
 )
 
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Windows.Forms
+$logRoot = Join-Path $env:LOCALAPPDATA "BananaForge"
+New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
+$logFile = Join-Path $logRoot "bootstrap-installer.log"
+
+function Write-InstallerLog([string]$Message) {
+    $entry = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  $Message"
+    Add-Content -LiteralPath $logFile -Value $entry
+    Write-Host $entry
+}
 
 function Show-Message([string]$Text, [string]$Title, [System.Windows.Forms.MessageBoxButtons]$Buttons = [System.Windows.Forms.MessageBoxButtons]::OK) {
+    Write-InstallerLog "$Title :: $Text"
+    if ($NonInteractive) {
+        if ($Buttons -eq [System.Windows.Forms.MessageBoxButtons]::YesNo) { return [System.Windows.Forms.DialogResult]::Yes }
+        return [System.Windows.Forms.DialogResult]::OK
+    }
     return [System.Windows.Forms.MessageBox]::Show($Text, $Title, $Buttons, [System.Windows.Forms.MessageBoxIcon]::Information)
 }
 
@@ -68,6 +86,7 @@ $desktopRoot = Join-Path $buildRoot "desktop"
 $launchArguments = @()
 
 try {
+    Write-InstallerLog "Starting Bootstrap installer. Repository: $Repository"
     Show-Message "BananaForge will download its public source, build the Chromium modloader locally, then remove the temporary source folder." "BananaForge installer"
     & git clone --depth 1 $Repository $buildRoot
     if ($LASTEXITCODE -ne 0) { throw "Git clone failed." }
@@ -90,32 +109,36 @@ try {
     }
     New-Item -ItemType Directory -Path $InstallRoot -Force | Out-Null
     Get-ChildItem -LiteralPath $builtApp -Force | Copy-Item -Destination $InstallRoot -Recurse -Force
+    Write-InstallerLog "Installed packaged BananaForge to $InstallRoot"
 
     if (-not $Btd6Source) { $Btd6Source = Find-Btd6Folder }
     if (-not $Btd6Source) {
         Show-Message "BTD6 was not found automatically. Select the folder that contains BloonsTD6.exe to continue." "Locate BTD6"
-        $Btd6Source = Choose-Folder "Choose your Steam BTD6 folder"
+        if (-not $NonInteractive) { $Btd6Source = Choose-Folder "Choose your Steam BTD6 folder" }
         if (-not $Btd6Source) { throw "BTD6 was not selected. Run the installer again when you know its Steam folder." }
     }
     if (-not (Test-Path (Join-Path $Btd6Source "BloonsTD6.exe"))) { throw "The selected BTD6 folder does not contain BloonsTD6.exe." }
 
     $createCopy = Show-Message "BTD6 was found here:`n$Btd6Source`n`nCreate a separate managed copy now? BananaForge will keep this copy synchronized with new Steam game files before every launch." "BananaForge installer" ([System.Windows.Forms.MessageBoxButtons]::YesNo)
-    if ($createCopy -eq [System.Windows.Forms.DialogResult]::Yes) {
+    if (-not $SkipManagedCopy -and $createCopy -eq [System.Windows.Forms.DialogResult]::Yes) {
         $sourcePath = (Resolve-Path -LiteralPath $Btd6Source).Path
         $managedPath = [System.IO.Path]::GetFullPath($ManagedCopyRoot)
         if ($sourcePath -eq $managedPath) { throw "The managed copy must have a different folder." }
         New-Item -ItemType Directory -Path $ManagedCopyRoot -Force | Out-Null
         Get-ChildItem -LiteralPath $Btd6Source -Force | Copy-Item -Destination $ManagedCopyRoot -Recurse -Force
         $launchArguments = @("--game-path", (Join-Path $sourcePath "BloonsTD6.exe"), "--instance-path", $managedPath)
+        Write-InstallerLog "Created managed BTD6 copy at $managedPath"
     }
 
     $manualMelon = Show-Message "Install MelonLoader now? BananaForge will open its official release page. Download and run the installer manually, then select it in BananaForge Settings." "Install MelonLoader" ([System.Windows.Forms.MessageBoxButtons]::YesNo)
-    if ($manualMelon -eq [System.Windows.Forms.DialogResult]::Yes) {
+    if (-not $SkipMelonLoader -and $manualMelon -eq [System.Windows.Forms.DialogResult]::Yes) {
         Start-Process "https://github.com/LavaGang/MelonLoader/releases/latest"
     }
 
-    Start-Process -FilePath (Join-Path $InstallRoot "BananaForge.exe") -ArgumentList $launchArguments
+    if (-not $NoLaunch) { Start-Process -FilePath (Join-Path $InstallRoot "BananaForge.exe") -ArgumentList $launchArguments }
+    Write-InstallerLog "Bootstrap installer completed successfully."
 }
 finally {
     if (Test-Path $buildRoot) { Remove-Item -LiteralPath $buildRoot -Recurse -Force }
+    Write-InstallerLog "Temporary repository folder removed."
 }
