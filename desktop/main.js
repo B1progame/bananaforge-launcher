@@ -61,14 +61,22 @@ function gameRoot() {
   return state.settings.instancePath || state.settings.gamePath;
 }
 
+function btd6Executable(candidate) {
+  if (!candidate || typeof candidate !== "string") return "";
+  const resolved = path.resolve(candidate);
+  const executable = resolved.toLowerCase().endsWith(".exe")
+    ? resolved
+    : path.join(resolved, "BloonsTD6.exe");
+  return path.basename(executable).toLowerCase() === "bloonstd6.exe" && fs.existsSync(executable)
+    ? executable
+    : "";
+}
+
 function gameExecutable() {
-  const configured = gameRoot();
-  if (configured) {
-    const direct = configured.toLowerCase().endsWith(".exe")
-      ? configured
-      : path.join(configured, "BloonsTD6.exe");
-    if (fs.existsSync(direct)) return direct;
-  }
+  const managed = btd6Executable(state.settings.instancePath);
+  if (managed) return managed;
+  const configured = btd6Executable(state.settings.gamePath);
+  if (configured) return configured;
   const candidates = [
     "C:\\Program Files (x86)\\Steam\\steamapps\\common\\BloonsTD6\\BloonsTD6.exe",
     "C:\\Program Files\\Steam\\steamapps\\common\\BloonsTD6\\BloonsTD6.exe"
@@ -233,11 +241,19 @@ app.on("window-all-closed", () => {
 ipcMain.handle("state:get", () => ({
   ...state,
   detectedGame: gameExecutable(),
+  configuredGamePath: btd6Executable(state.settings.gamePath),
+  configuredInstancePath: btd6Executable(state.settings.instancePath),
   version: app.getVersion(),
   userDataPath: app.getPath("userData")
 }));
 
 ipcMain.handle("settings:save", (_event, settings) => {
+  if (settings.gamePath && !btd6Executable(settings.gamePath)) {
+    throw new Error("Game path must point to the real BloonsTD6.exe file or its containing folder.");
+  }
+  if (settings.instancePath && !btd6Executable(settings.instancePath)) {
+    throw new Error("Managed copy path must contain BloonsTD6.exe.");
+  }
   state.settings = { ...state.settings, ...settings };
   saveState();
   return state.settings;
@@ -250,7 +266,9 @@ ipcMain.handle("dialog:game", async () => {
     filters: [{ name: "Bloons TD 6", extensions: ["exe"] }]
   });
   if (result.canceled) return "";
-  return result.filePaths[0];
+  const executable = btd6Executable(result.filePaths[0]);
+  if (!executable) throw new Error("That is not BloonsTD6.exe. Select the BTD6 executable itself.");
+  return executable;
 });
 
 ipcMain.handle("dialog:folder", async (_event, title) => {
@@ -283,6 +301,9 @@ ipcMain.handle("instance:create-copy", async () => {
   if (targetResult.canceled) return { canceled: true };
   const source = path.resolve(sourceResult.filePaths[0]);
   const target = path.resolve(targetResult.filePaths[0]);
+  if (!btd6Executable(source)) {
+    throw new Error("The original-game folder must contain BloonsTD6.exe.");
+  }
   if (source === target || target.startsWith(source + path.sep)) {
     throw new Error("The managed copy must be outside the original BTD6 folder.");
   }

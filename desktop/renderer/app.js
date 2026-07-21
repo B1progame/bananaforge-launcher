@@ -152,14 +152,16 @@ async function refreshState() {
   $("#activeProfileName").textContent = active?.name || "Default";
   const mods = await api.listMods();
   $("#activeProfileCount").textContent = `${mods.length} installed mod${mods.length === 1 ? "" : "s"}`;
-  const game = appState.settings.instancePath || appState.settings.gamePath || appState.detectedGame;
-  $("#gameStatus").textContent = appState.settings.instancePath
+  const managedGame = appState.configuredInstancePath;
+  const originalGame = appState.configuredGamePath || appState.detectedGame;
+  const game = managedGame || originalGame;
+  $("#gameStatus").textContent = managedGame
     ? "Managed instance ready"
     : game
       ? "Original game detected"
       : "Not configured";
-  $("#gamePathText").textContent = appState.settings.instancePath
-    ? appState.settings.instancePath
+  $("#gamePathText").textContent = managedGame
+    ? managedGame
     : game
       ? "Launches clean until you create a managed copy"
       : "Choose BTD6 in Settings";
@@ -176,8 +178,8 @@ async function refreshState() {
 }
 
 function fillSettings() {
-  $("#gamePath").value = appState.settings.gamePath || appState.detectedGame || "";
-  $("#instancePath").value = appState.settings.instancePath || "";
+  $("#gamePath").value = appState.configuredGamePath || appState.detectedGame || "";
+  $("#instancePath").value = appState.configuredInstancePath || "";
   $("#melonLoaderPath").value = appState.settings.melonLoaderPath || "";
   $("#downloadPath").value = appState.settings.downloadPath || "";
   $("#launchArguments").value = appState.settings.launchArguments || "";
