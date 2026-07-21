@@ -4,6 +4,13 @@ const path = require("node:path");
 const { spawn } = require("node:child_process");
 const crypto = require("node:crypto");
 
+// Keep app data beside the per-user installation, not in Electron's roaming default.
+// BANANAFORGE_STORAGE_ROOT is only used by automated tests.
+const storageRoot = process.env.BANANAFORGE_STORAGE_ROOT
+  ? path.resolve(process.env.BANANAFORGE_STORAGE_ROOT)
+  : path.join(app.getPath("localAppData"), "BananaForge");
+app.setPath("userData", storageRoot);
+
 let mainWindow;
 let statePath;
 let state;
@@ -59,7 +66,11 @@ function profileRoot(profileId = state.activeProfileId) {
 }
 
 function downloadRoot() {
-  return path.join(app.getPath("downloads"), "BananaForge");
+  return path.join(storageRoot, "downloads");
+}
+
+function melonLoaderRoot() {
+  return path.join(storageRoot, "melon-loader");
 }
 
 function gameRoot() {
@@ -174,11 +185,11 @@ function registerDownloadHandler(targetSession) {
   registeredDownloadSessions.add(targetSession);
   targetSession.on("will-download", (_event, item) => {
     const id = crypto.randomUUID();
-    const root = downloadRoot();
-    fs.mkdirSync(root, { recursive: true });
     const fileName = path.basename(item.getFilename());
-    const savePath = path.join(root, fileName);
     const isMelonLoader = melonLoaderDownloads.has(item.getURL()) || melonLoaderDownloads.has(fileName);
+    const root = isMelonLoader ? melonLoaderRoot() : downloadRoot();
+    fs.mkdirSync(root, { recursive: true });
+    const savePath = path.join(root, fileName);
     item.setSavePath(savePath);
     const record = { id, name: fileName, path: savePath, url: item.getURL(), received: 0, total: item.getTotalBytes(), state: "progressing", startedAt: new Date().toISOString() };
     state.downloads.unshift(record);

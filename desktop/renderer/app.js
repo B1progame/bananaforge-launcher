@@ -407,7 +407,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   $("#openDownloadsFolder").onclick = () => {
     const latest = appState.downloads[0];
     if (latest) api.showPath(latest.path);
-    else toast("Download a file first. Browser downloads go to Windows Downloads\\BananaForge.");
+    else toast("Download a file first. Browser downloads go to AppData\\Local\\BananaForge\\downloads.");
   };
 
   api.onDownloadsChanged((downloads) => {
