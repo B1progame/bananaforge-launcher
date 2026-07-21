@@ -2,7 +2,7 @@
 ; It deliberately does not execute PowerShell, Git, npm, or downloaded code.
 
 #define AppName "BananaForge"
-#define AppVersion "0.2.5"
+#define AppVersion "0.2.6"
 #define AppExeName "BananaForge.exe"
 
 [Setup]
@@ -16,7 +16,7 @@ DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=..\desktop\dist
-OutputBaseFilename=BananaForge-Safe-Setup-0.2.5
+OutputBaseFilename=BananaForge-Safe-Setup-0.2.6
 SetupIconFile=..\desktop\assets\bananaforge.ico
 UninstallDisplayName={#AppName}
 UninstallDisplayIcon={app}\{#AppExeName}

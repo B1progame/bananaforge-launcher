@@ -8,7 +8,10 @@ const crypto = require("node:crypto");
 // BANANAFORGE_STORAGE_ROOT is only used by automated tests.
 const storageRoot = process.env.BANANAFORGE_STORAGE_ROOT
   ? path.resolve(process.env.BANANAFORGE_STORAGE_ROOT)
-  : path.join(app.getPath("localAppData"), "BananaForge");
+  : path.join(
+    process.env.LOCALAPPDATA || path.join(path.dirname(app.getPath("appData")), "Local"),
+    "BananaForge"
+  );
 app.setPath("userData", storageRoot);
 
 let mainWindow;
