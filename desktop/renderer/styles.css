@@ -153,6 +153,7 @@ input:focus { border-color: #c98626; box-shadow: 0 0 0 3px #ffad2712; }
 .modal-backdrop[hidden] { display: none; }
 .modal { width: 450px; padding: 28px; border: 1px solid #3a587c; border-radius: 19px; background: #101f33; box-shadow: 0 30px 80px #000a; }
 .modal h2 { margin-bottom: 7px; }.modal p { color: #8298b3; font-size: 12px; }.modal input { width: 100%; margin: 11px 0 20px; }.modal .actions { justify-content: flex-end; }
+.setup-modal { width: 560px; }.setup-step { display: grid; grid-template-columns: 32px 1fr auto; align-items: center; gap: 12px; margin-top: 12px; padding: 13px; border: 1px solid #494139; border-radius: 12px; background: #24211d; }.setup-step b { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: #4b3215; color: var(--gold); }.setup-step strong, .setup-step small { display: block; }.setup-step strong { font-size: 13px; }.setup-step small { margin-top: 3px; color: #9b9388; font-size: 11px; }
 
 @media (max-width: 1200px) {
   .sidebar { width: 218px; flex-basis: 218px; }

@@ -163,10 +163,16 @@ async function refreshState() {
     : game
       ? "Launches clean until you create a managed copy"
       : "Choose BTD6 in Settings";
-  $("#melonStatus").textContent = appState.settings.melonLoaderPath ? "Installer ready" : "Installer not selected";
+  const melonReady = Boolean(appState.settings.melonLoaderPath);
+  $("#melonStatus").textContent = melonReady ? "Installer ready" : "Ready to download";
+  $("#runMelonCard").textContent = melonReady ? "Open MelonLoader →" : "Download MelonLoader →";
   fillSettings();
   renderProfiles();
   renderDownloads(appState.downloads);
+  $("#setupGameStatus").textContent = game
+    ? `Found: ${game}`
+    : "BTD6 was not found automatically. Choose BloonsTD6.exe.";
+  $("#firstRunModal").hidden = Boolean(appState.settings.firstRunComplete);
 }
 
 function fillSettings() {
@@ -281,6 +287,22 @@ async function saveSettings() {
   await refreshState();
 }
 
+async function downloadMelonLoader() {
+  const result = await safe(
+    () => api.downloadMelonLoader(),
+    "Official MelonLoader installer download started"
+  );
+  if (result) toast(`Downloading ${result.name} (${result.version})`);
+}
+
+async function completeFirstRun() {
+  await safe(
+    () => api.saveSettings({ ...appState.settings, firstRunComplete: true }),
+    "Setup saved"
+  );
+  await refreshState();
+}
+
 function openInBrowser(url) {
   addTab(url);
   showPage("browser");
@@ -310,12 +332,28 @@ document.addEventListener("DOMContentLoaded", async () => {
   $("#launchGameTop").onclick = launch;
   $("#launchGameHero").onclick = launch;
   $("#updateGame").onclick = () => safe(() => api.updateGame(), "Opened BTD6 in Steam");
-  $("#runMelonCard").onclick = () => safe(() => api.launchMelonLoader(), "MelonLoader installer opened");
+  $("#runMelonCard").onclick = () => appState.settings.melonLoaderPath
+    ? safe(() => api.launchMelonLoader(), "MelonLoader installer opened")
+    : downloadMelonLoader();
   $("#runMelonSettings").onclick = () => safe(() => api.launchMelonLoader(), "MelonLoader installer opened");
   $("#createInstance").onclick = async () => {
     const result = await safe(() => api.createManagedCopy(), "Managed BTD6 copy created");
     if (result && !result.canceled) await refreshState();
   };
+  $("#setupChooseGame").onclick = async () => {
+    const value = await api.chooseGame();
+    if (value) {
+      $("#gamePath").value = value;
+      await safe(() => api.saveSettings({ ...appState.settings, gamePath: value }), "BTD6 path saved");
+      await refreshState();
+    }
+  };
+  $("#setupCreateCopy").onclick = async () => {
+    const result = await safe(() => api.createManagedCopy(), "Managed BTD6 copy created");
+    if (result && !result.canceled) await refreshState();
+  };
+  $("#setupDownloadMelon").onclick = downloadMelonLoader;
+  $("#setupFinish").onclick = completeFirstRun;
   $("#installMod").onclick = async () => {
     const result = await safe(() => api.installMods(), "Selected mods installed into the active profile");
     if (result) {
@@ -356,7 +394,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (value) $("#downloadPath").value = value;
   };
   $("#saveSettings").onclick = saveSettings;
-  $("#findMelon").onclick = () => openInBrowser("https://github.com/LavaGang/MelonLoader/releases/latest");
+  $("#findMelon").onclick = downloadMelonLoader;
   $("#openDownloadsFolder").onclick = () => {
     const latest = appState.downloads[0];
     if (latest) api.showPath(latest.path);
@@ -369,6 +407,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
   api.onNewTab((url) => openInBrowser(url));
   api.onInstanceProgress((value) => toast(value.message));
+  api.onMelonLoaderDownloaded(async (value) => {
+    toast(`${value.name} downloaded. You can now run its installer.`);
+    await refreshState();
+  });
 
   addTab();
   await refreshState();

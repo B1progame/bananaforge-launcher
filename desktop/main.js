@@ -7,6 +7,7 @@ const crypto = require("node:crypto");
 let mainWindow;
 let statePath;
 let state;
+const melonLoaderDownloads = new Set();
 
 const defaultState = () => ({
   settings: {
@@ -14,7 +15,8 @@ const defaultState = () => ({
     instancePath: "",
     melonLoaderPath: "",
     downloadPath: "",
-    launchArguments: ""
+    launchArguments: "",
+    firstRunComplete: false
   },
   profiles: [{ id: "default", name: "Default", createdAt: new Date().toISOString() }],
   activeProfileId: "default",
@@ -210,6 +212,10 @@ app.whenReady().then(() => {
       record.received = item.getReceivedBytes();
       record.total = item.getTotalBytes();
       record.state = downloadState;
+      if (melonLoaderDownloads.delete(record.url) && downloadState === "completed") {
+        state.settings.melonLoaderPath = savePath;
+        send("melonloader:downloaded", { path: savePath, name: record.name });
+      }
       saveState();
       send("downloads:changed", state.downloads);
     });
@@ -325,6 +331,24 @@ ipcMain.handle("melonloader:launch", () => {
   }
   spawn(installer, [], { detached: true, stdio: "ignore" }).unref();
   return true;
+});
+
+ipcMain.handle("melonloader:download", async () => {
+  const response = await fetch("https://api.github.com/repos/LavaGang/MelonLoader/releases/latest", {
+    headers: { Accept: "application/vnd.github+json", "User-Agent": "BananaForge" }
+  });
+  if (!response.ok) throw new Error("Could not reach the official MelonLoader release page.");
+  const release = await response.json();
+  const asset = (release.assets || []).find((candidate) =>
+    typeof candidate?.name === "string" &&
+    candidate.name.toLowerCase().endsWith(".exe") &&
+    candidate.name.toLowerCase().includes("installer") &&
+    typeof candidate.browser_download_url === "string"
+  );
+  if (!asset) throw new Error("The latest official MelonLoader release did not include a Windows installer.");
+  melonLoaderDownloads.add(asset.browser_download_url);
+  session.defaultSession.downloadURL(asset.browser_download_url);
+  return { name: asset.name, version: release.tag_name || "latest" };
 });
 
 ipcMain.handle("profiles:create", (_event, name) => {

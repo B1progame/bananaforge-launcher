@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld("bananaforge", {
   launchGame: () => ipcRenderer.invoke("game:launch"),
   updateGame: () => ipcRenderer.invoke("game:update"),
   launchMelonLoader: () => ipcRenderer.invoke("melonloader:launch"),
+  downloadMelonLoader: () => ipcRenderer.invoke("melonloader:download"),
   createProfile: (name) => ipcRenderer.invoke("profiles:create", name),
   activateProfile: (id) => ipcRenderer.invoke("profiles:activate", id),
   deleteProfile: (id) => ipcRenderer.invoke("profiles:delete", id),
@@ -20,5 +21,6 @@ contextBridge.exposeInMainWorld("bananaforge", {
   openExternal: (url) => ipcRenderer.invoke("external:open", url),
   onDownloadsChanged: (callback) => ipcRenderer.on("downloads:changed", (_event, value) => callback(value)),
   onNewTab: (callback) => ipcRenderer.on("browser:new-tab", (_event, value) => callback(value)),
-  onInstanceProgress: (callback) => ipcRenderer.on("instance:progress", (_event, value) => callback(value))
+  onInstanceProgress: (callback) => ipcRenderer.on("instance:progress", (_event, value) => callback(value)),
+  onMelonLoaderDownloaded: (callback) => ipcRenderer.on("melonloader:downloaded", (_event, value) => callback(value))
 });

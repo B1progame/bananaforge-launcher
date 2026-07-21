@@ -133,7 +133,7 @@
               <p>Download the official installer in the built-in browser, then select it here.</p>
               <label>MelonLoader installer</label>
               <div class="field-row"><input id="melonLoaderPath" placeholder="C:\...\MelonLoader.Installer.exe"><button id="chooseMelon">Browse</button></div>
-              <div class="inline-actions"><button class="secondary" id="findMelon">Open official release</button><button class="secondary" id="runMelonSettings">Run installer</button></div>
+              <div class="inline-actions"><button class="secondary" id="findMelon">Download official installer</button><button class="secondary" id="runMelonSettings">Run installer</button></div>
               <label>Download folder</label>
               <div class="field-row"><input id="downloadPath" placeholder="Use Windows Downloads"><button id="chooseDownloads">Browse</button></div>
             </article>
@@ -146,6 +146,17 @@
     <div class="toast" id="toast"></div>
     <div class="modal-backdrop" id="profileModal" hidden>
       <div class="modal"><span class="eyebrow">NEW PROFILE</span><h2>Create a mod profile</h2><p>Give this collection a clear name.</p><input id="profileName" maxlength="60" placeholder="For example: Boss events"><div class="actions"><button class="secondary" id="cancelProfile">Cancel</button><button class="primary" id="confirmProfile">Create profile</button></div></div>
+    </div>
+    <div class="modal-backdrop" id="firstRunModal" hidden>
+      <div class="modal setup-modal">
+        <span class="eyebrow">FIRST-RUN SETUP</span>
+        <h2>Set up BananaForge</h2>
+        <p>These steps happen after installation so the Windows installer stays simple and safe.</p>
+        <div class="setup-step"><b>1</b><div><strong>Find BTD6</strong><small id="setupGameStatus">Checking Steam locations…</small></div><button class="secondary" id="setupChooseGame">Choose</button></div>
+        <div class="setup-step"><b>2</b><div><strong>Create managed copy</strong><small>Keep original BTD6 separate from mods.</small></div><button class="secondary" id="setupCreateCopy">Create</button></div>
+        <div class="setup-step"><b>3</b><div><strong>Get MelonLoader</strong><small>Downloads the latest official installer directly.</small></div><button class="secondary" id="setupDownloadMelon">Download</button></div>
+        <div class="actions"><button class="primary" id="setupFinish">Finish setup</button></div>
+      </div>
     </div>
     <script src="app.js"></script>
   </body>
