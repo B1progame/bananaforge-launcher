@@ -37,6 +37,29 @@ function Choose-Folder([string]$Description) {
     return ""
 }
 
+function Find-Btd6Folder {
+    $candidates = @(
+        "C:\Program Files (x86)\Steam\steamapps\common\BloonsTD6",
+        "C:\Program Files\Steam\steamapps\common\BloonsTD6"
+    )
+    $steamRoots = @("C:\Program Files (x86)\Steam", "C:\Program Files\Steam")
+    foreach ($steamRoot in $steamRoots) {
+        $libraryFile = Join-Path $steamRoot "steamapps\libraryfolders.vdf"
+        if (Test-Path $libraryFile) {
+            foreach ($line in Get-Content -LiteralPath $libraryFile) {
+                if ($line -match '"path"\s+"(.+)"') {
+                    $library = $Matches[1].Replace('\\', '\')
+                    $candidates += Join-Path $library "steamapps\common\BloonsTD6"
+                }
+            }
+        }
+    }
+    foreach ($candidate in $candidates | Select-Object -Unique) {
+        if (Test-Path (Join-Path $candidate "BloonsTD6.exe")) { return $candidate }
+    }
+    return ""
+}
+
 Require-Command git
 Require-Command npm
 
@@ -68,21 +91,25 @@ try {
     New-Item -ItemType Directory -Path $InstallRoot -Force | Out-Null
     Get-ChildItem -LiteralPath $builtApp -Force | Copy-Item -Destination $InstallRoot -Recurse -Force
 
-    $createCopy = Show-Message "Create a separate managed BTD6 copy now? BananaForge will keep this copy synchronized with new Steam game files before every launch." "BananaForge installer" ([System.Windows.Forms.MessageBoxButtons]::YesNo)
+    if (-not $Btd6Source) { $Btd6Source = Find-Btd6Folder }
+    if (-not $Btd6Source) {
+        Show-Message "BTD6 was not found automatically. Select the folder that contains BloonsTD6.exe to continue." "Locate BTD6"
+        $Btd6Source = Choose-Folder "Choose your Steam BTD6 folder"
+        if (-not $Btd6Source) { throw "BTD6 was not selected. Run the installer again when you know its Steam folder." }
+    }
+    if (-not (Test-Path (Join-Path $Btd6Source "BloonsTD6.exe"))) { throw "The selected BTD6 folder does not contain BloonsTD6.exe." }
+
+    $createCopy = Show-Message "BTD6 was found here:`n$Btd6Source`n`nCreate a separate managed copy now? BananaForge will keep this copy synchronized with new Steam game files before every launch." "BananaForge installer" ([System.Windows.Forms.MessageBoxButtons]::YesNo)
     if ($createCopy -eq [System.Windows.Forms.DialogResult]::Yes) {
-        if (-not $Btd6Source) { $Btd6Source = Choose-Folder "Choose your original Steam BTD6 folder" }
-        if ($Btd6Source) {
-            if (-not (Test-Path (Join-Path $Btd6Source "BloonsTD6.exe"))) { throw "The selected BTD6 folder does not contain BloonsTD6.exe." }
-            $sourcePath = (Resolve-Path -LiteralPath $Btd6Source).Path
-            $managedPath = [System.IO.Path]::GetFullPath($ManagedCopyRoot)
-            if ($sourcePath -eq $managedPath) { throw "The managed copy must have a different folder." }
-            New-Item -ItemType Directory -Path $ManagedCopyRoot -Force | Out-Null
-            Get-ChildItem -LiteralPath $Btd6Source -Force | Copy-Item -Destination $ManagedCopyRoot -Recurse -Force
-            $launchArguments = @("--game-path", (Join-Path $sourcePath "BloonsTD6.exe"), "--instance-path", $managedPath)
-        }
+        $sourcePath = (Resolve-Path -LiteralPath $Btd6Source).Path
+        $managedPath = [System.IO.Path]::GetFullPath($ManagedCopyRoot)
+        if ($sourcePath -eq $managedPath) { throw "The managed copy must have a different folder." }
+        New-Item -ItemType Directory -Path $ManagedCopyRoot -Force | Out-Null
+        Get-ChildItem -LiteralPath $Btd6Source -Force | Copy-Item -Destination $ManagedCopyRoot -Recurse -Force
+        $launchArguments = @("--game-path", (Join-Path $sourcePath "BloonsTD6.exe"), "--instance-path", $managedPath)
     }
 
-    $manualMelon = Show-Message "BananaForge installs no third-party tools automatically. Open the official MelonLoader release page now for a manual installation?" "MelonLoader" ([System.Windows.Forms.MessageBoxButtons]::YesNo)
+    $manualMelon = Show-Message "Install MelonLoader now? BananaForge will open its official release page. Download and run the installer manually, then select it in BananaForge Settings." "Install MelonLoader" ([System.Windows.Forms.MessageBoxButtons]::YesNo)
     if ($manualMelon -eq [System.Windows.Forms.DialogResult]::Yes) {
         Start-Process "https://github.com/LavaGang/MelonLoader/releases/latest"
     }
