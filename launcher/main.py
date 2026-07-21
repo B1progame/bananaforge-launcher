@@ -22,6 +22,16 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=APP_NAME)
     parser.add_argument("--headless", action="store_true")
     parser.add_argument("--game")
+    parser.add_argument(
+        "--guided-setup",
+        action="store_true",
+        help="Open the first-run guided setup immediately (used by the installer)",
+    )
+    parser.add_argument(
+        "--recommended-tools",
+        action="store_true",
+        help="Show the MelonLoader and BTD Mod Helper choices during guided setup",
+    )
     args = parser.parse_args()
     services = ApplicationServices()
     if args.headless:
@@ -45,6 +55,8 @@ def main() -> int:
     if icon_path.is_file():
         app.setWindowIcon(QIcon(str(icon_path)))
     engine = QQmlApplicationEngine()
+    engine.rootContext().setContextProperty("openGuidedSetup", args.guided_setup)
+    engine.rootContext().setContextProperty("recommendedTools", args.recommended_tools)
     qml_path = resource_path("launcher", "ui", "Main.qml")
     engine.load(QUrl.fromLocalFile(str(qml_path)))
     if not engine.rootObjects():

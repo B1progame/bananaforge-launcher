@@ -5,3 +5,6 @@ __pycache__/
 build/
 dist/
 *.spec
+desktop/node_modules/
+desktop/dist/
+desktop/*.log

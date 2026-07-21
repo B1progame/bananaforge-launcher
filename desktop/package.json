@@ -1,0 +1,49 @@
+{
+  "name": "bananaforge-modloader",
+  "version": "0.2.0",
+  "description": "BTD6 mod profile manager, launcher, and Chromium mod browser",
+  "main": "main.js",
+  "author": "BananaForge",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "check": "node --check main.js && node --check preload.js && node --check renderer/app.js",
+    "pack": "electron-builder --win dir",
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^37.2.0",
+    "electron-builder": "^26.0.12",
+    "playwright": "^1.61.1"
+  },
+  "build": {
+    "appId": "dev.bananaforge.modloader",
+    "productName": "BananaForge",
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "dir",
+        "nsis"
+      ],
+      "icon": "assets/bananaforge.ico",
+      "artifactName": "BananaForge-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "BananaForge"
+    }
+  }
+}
