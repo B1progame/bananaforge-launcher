@@ -43,6 +43,7 @@ function readState() {
   } catch {
     state = defaultState();
   }
+  ensureProfileManifests();
   saveState();
 }
 
@@ -64,8 +65,56 @@ function applyInstallerPaths() {
   if (original || managed) saveState();
 }
 
+function profileDirectory(profileId = state.activeProfileId) {
+  return path.join(app.getPath("userData"), "profiles", profileId);
+}
+
 function profileRoot(profileId = state.activeProfileId) {
-  return path.join(app.getPath("userData"), "profiles", profileId, "mods");
+  return path.join(profileDirectory(profileId), "mods");
+}
+
+function profileManifestPath(profileId = state.activeProfileId) {
+  return path.join(profileDirectory(profileId), "profile.json");
+}
+
+function profileById(profileId = state.activeProfileId) {
+  return state.profiles.find((profile) => profile.id === profileId);
+}
+
+function profileMods(profileId = state.activeProfileId) {
+  const root = profileRoot(profileId);
+  fs.mkdirSync(root, { recursive: true });
+  return fs.readdirSync(root)
+    .filter((name) => name.toLowerCase().endsWith(".dll"))
+    .sort((left, right) => left.localeCompare(right));
+}
+
+function writeProfileManifest(profileId = state.activeProfileId) {
+  const profile = profileById(profileId);
+  if (!profile) return null;
+  const root = profileRoot(profileId);
+  const manifest = {
+    schemaVersion: 1,
+    id: profile.id,
+    name: profile.name,
+    createdAt: profile.createdAt,
+    updatedAt: new Date().toISOString(),
+    mods: profileMods(profileId).map((file) => {
+      const stat = fs.statSync(path.join(root, file));
+      return {
+        file,
+        displayName: path.basename(file, path.extname(file)),
+        size: stat.size,
+        installedAt: stat.birthtime.toISOString()
+      };
+    })
+  };
+  fs.writeFileSync(profileManifestPath(profileId), JSON.stringify(manifest, null, 2), "utf8");
+  return manifest;
+}
+
+function ensureProfileManifests() {
+  for (const profile of state.profiles) writeProfileManifest(profile.id);
 }
 
 function downloadRoot() {
@@ -161,7 +210,7 @@ function syncActiveProfile() {
   const root = state.settings.instancePath;
   const source = profileRoot();
   fs.mkdirSync(source, { recursive: true });
-  const files = fs.readdirSync(source).filter((name) => name.toLowerCase().endsWith(".dll"));
+  const files = profileMods();
   if (!root) return files;
   const modsFolder = path.join(root, "Mods");
   fs.mkdirSync(modsFolder, { recursive: true });
@@ -183,8 +232,9 @@ function installModFile(file) {
   const name = safeModName(file);
   fs.mkdirSync(destination, { recursive: true });
   fs.copyFileSync(file, path.join(destination, name));
+  writeProfileManifest();
   syncActiveProfile();
-  return fs.readdirSync(destination).filter((entry) => entry.toLowerCase().endsWith(".dll"));
+  return profileMods();
 }
 
 function registerDownloadHandler(targetSession) {
@@ -407,6 +457,7 @@ ipcMain.handle("profiles:create", (_event, name) => {
   const profile = { id: crypto.randomUUID(), name: cleanName.slice(0, 60), createdAt: new Date().toISOString() };
   state.profiles.push(profile);
   fs.mkdirSync(profileRoot(profile.id), { recursive: true });
+  writeProfileManifest(profile.id);
   saveState();
   return state.profiles;
 });
@@ -428,6 +479,13 @@ ipcMain.handle("profiles:delete", (_event, id) => {
   return state.profiles;
 });
 
+ipcMain.handle("profiles:details", (_event, id) => {
+  const profile = profileById(id);
+  if (!profile) throw new Error("Profile not found.");
+  const manifest = writeProfileManifest(id);
+  return { profile, manifest, manifestPath: profileManifestPath(id) };
+});
+
 ipcMain.handle("mods:install", async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     title: "Install a downloaded BTD6 mod",
@@ -436,22 +494,23 @@ ipcMain.handle("mods:install", async () => {
   });
   if (result.canceled) return [];
   for (const file of result.filePaths) installModFile(file);
-  return fs.readdirSync(profileRoot()).filter((file) => file.toLowerCase().endsWith(".dll"));
+  return profileMods();
 });
 
 ipcMain.handle("mods:install-download", (_event, file) => installModFile(file));
 
 ipcMain.handle("mods:list", () => {
-  const root = profileRoot();
-  fs.mkdirSync(root, { recursive: true });
-  return fs.readdirSync(root).filter((file) => file.toLowerCase().endsWith(".dll"));
+  const mods = profileMods();
+  writeProfileManifest();
+  return mods;
 });
 
 ipcMain.handle("mods:remove", (_event, name) => {
   const safeName = path.basename(name);
   fs.rmSync(path.join(profileRoot(), safeName), { force: true });
+  writeProfileManifest();
   syncActiveProfile();
-  return fs.readdirSync(profileRoot()).filter((file) => file.toLowerCase().endsWith(".dll"));
+  return profileMods();
 });
 
 ipcMain.handle("path:show", (_event, target) => {

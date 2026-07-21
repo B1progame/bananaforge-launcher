@@ -104,6 +104,19 @@
           <div id="profileGrid" class="profile-grid"></div>
         </section>
 
+        <section class="page" id="page-profile-detail">
+          <header class="page-header compact">
+            <div>
+              <span class="eyebrow">PROFILE MANIFEST</span>
+              <h1 id="profileDetailName">Profile</h1>
+              <p id="profileDetailMeta">Loading profile mods…</p>
+            </div>
+            <div class="actions"><button class="secondary" id="openProfileManifest">Show profile.json</button><button class="primary" id="backToProfiles">← Profiles</button></div>
+          </header>
+          <div class="manifest-path"><span>profile.json</span><code id="profileManifestPath"></code></div>
+          <div id="profileDetailMods" class="profile-detail-mods list-empty">Open a profile to see its mods.</div>
+        </section>
+
         <section class="page" id="page-downloads">
           <header class="page-header compact">
             <div><span class="eyebrow">CHROMIUM DOWNLOADS</span><h1>Downloads</h1><p>Files downloaded in any browser tab appear here with their progress and source.</p></div>

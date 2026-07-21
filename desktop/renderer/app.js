@@ -6,6 +6,7 @@ let appState;
 let tabs = [];
 let activeTabId = null;
 let toastTimer;
+let openProfileDetail;
 const MOD_HOME = "https://gurrenm3.github.io/BTD-Mod-Helper/mod-browser?search=";
 
 function toast(message, error = false) {
@@ -240,7 +241,19 @@ function renderProfiles() {
     const active = profile.id === appState.activeProfileId;
     const card = document.createElement("article");
     card.className = `profile-card${active ? " active" : ""}`;
-    card.innerHTML = `<div class="profile-icon">◈</div><h3>${escapeHtml(profile.name)}</h3><p>Created ${new Date(profile.createdAt).toLocaleDateString()}</p>`;
+    card.tabIndex = 0;
+    card.title = "Double-click to view this profile's mods";
+    card.innerHTML = `<div class="profile-icon">◈</div><h3>${escapeHtml(profile.name)}</h3><p>Created ${new Date(profile.createdAt).toLocaleDateString()}</p><small class="profile-hint">Double-click to view mods</small>`;
+    const openDetails = () => showProfileDetails(profile.id);
+    card.ondblclick = (event) => {
+      if (!event.target.closest("button")) openDetails();
+    };
+    card.onkeydown = (event) => {
+      if ((event.key === "Enter" || event.key === " ") && !event.target.closest("button")) {
+        event.preventDefault();
+        openDetails();
+      }
+    };
     const actions = document.createElement("div");
     actions.className = "card-actions";
     if (active) {
@@ -265,6 +278,37 @@ function renderProfiles() {
     card.appendChild(actions);
     root.appendChild(card);
   }
+}
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 KB";
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
+}
+
+async function showProfileDetails(id) {
+  const detail = await safe(() => api.profileDetails(id));
+  if (!detail) return;
+  openProfileDetail = detail;
+  const { profile, manifest, manifestPath } = detail;
+  $("#profileDetailName").textContent = profile.name;
+  $("#profileDetailMeta").textContent = `${manifest.mods.length} mod${manifest.mods.length === 1 ? "" : "s"} · Updated ${new Date(manifest.updatedAt).toLocaleString()}`;
+  $("#profileManifestPath").textContent = manifestPath;
+  const root = $("#profileDetailMods");
+  root.innerHTML = "";
+  if (!manifest.mods.length) {
+    root.className = "profile-detail-mods list-empty";
+    root.textContent = "No mods in this profile yet. Download a DLL, then install it into this profile.";
+  } else {
+    root.className = "profile-detail-mods";
+    manifest.mods.forEach((mod, index) => {
+      const row = document.createElement("article");
+      row.className = "profile-mod-card";
+      row.innerHTML = `<div class="mod-file-icon icon-${index % 4}">◈</div><div><strong>${escapeHtml(mod.displayName)}</strong><small>${escapeHtml(mod.file)} · ${formatBytes(mod.size)}</small></div><span>DLL</span>`;
+      root.appendChild(row);
+    });
+  }
+  showPage("profile-detail");
 }
 
 function renderDownloads(downloads = []) {
@@ -421,6 +465,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   };
   $("#profileName").onkeydown = (event) => event.key === "Enter" && $("#confirmProfile").click();
+  $("#backToProfiles").onclick = () => showPage("profiles");
+  $("#openProfileManifest").onclick = () => {
+    if (openProfileDetail?.manifestPath) api.showPath(openProfileDetail.manifestPath);
+  };
 
   $("#chooseGame").onclick = async () => {
     const value = await api.chooseGame();
