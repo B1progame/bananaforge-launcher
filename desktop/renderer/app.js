@@ -339,6 +339,18 @@ function openInBrowser(url) {
   showPage("browser");
 }
 
+function focusProfileName() {
+  // A Chromium guest can retain the native keyboard focus even when its page is
+  // hidden. Blur it first, then give the host document and input a fresh turn.
+  activeWebview()?.blur();
+  window.focus();
+  requestAnimationFrame(() => {
+    const input = $("#profileName");
+    input.focus({ preventScroll: true });
+    input.select();
+  });
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   document.addEventListener("click", (event) => {
     if (event.target.closest("button")) bananaBurst(event.clientX, event.clientY);
@@ -398,7 +410,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   $("#newProfile").onclick = () => {
     $("#profileModal").hidden = false;
     $("#profileName").value = "";
-    $("#profileName").focus();
+    focusProfileName();
   };
   $("#cancelProfile").onclick = () => ($("#profileModal").hidden = true);
   $("#confirmProfile").onclick = async () => {
