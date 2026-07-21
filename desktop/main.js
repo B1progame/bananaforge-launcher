@@ -94,6 +94,10 @@ function btd6Executable(candidate) {
 function gameExecutable() {
   const managed = btd6Executable(state.settings.instancePath);
   if (managed) return managed;
+  return originalGameExecutable();
+}
+
+function originalGameExecutable() {
   const configured = btd6Executable(state.settings.gamePath);
   if (configured) return configured;
   const candidates = [
@@ -321,34 +325,26 @@ ipcMain.handle("dialog:melonloader", async () => {
 });
 
 ipcMain.handle("instance:create-copy", async () => {
-  const sourceResult = await dialog.showOpenDialog(mainWindow, {
-    title: "Choose your original BTD6 folder",
-    properties: ["openDirectory"]
-  });
-  if (sourceResult.canceled) return { canceled: true };
-  const targetResult = await dialog.showOpenDialog(mainWindow, {
-    title: "Choose an empty folder for the managed copy",
-    properties: ["openDirectory", "createDirectory"]
-  });
-  if (targetResult.canceled) return { canceled: true };
-  const source = path.resolve(sourceResult.filePaths[0]);
-  const target = path.resolve(targetResult.filePaths[0]);
-  if (!btd6Executable(source)) {
-    throw new Error("The original-game folder must contain BloonsTD6.exe.");
-  }
-  if (source === target || target.startsWith(source + path.sep)) {
-    throw new Error("The managed copy must be outside the original BTD6 folder.");
+  const sourceExecutable = originalGameExecutable();
+  if (!sourceExecutable) throw new Error("BTD6 was not found. Select BloonsTD6.exe in Settings first.");
+  const source = path.dirname(sourceExecutable);
+  const target = path.join(storageRoot, "Instances", "BTD6");
+  const existing = btd6Executable(target);
+  if (existing) {
+    state.settings.gamePath = source;
+    state.settings.instancePath = target;
+    saveState();
+    return { source, target, copied: 0, existing: true };
   }
   send("instance:progress", { message: "Copying BTD6 files…", busy: true });
-  await fs.promises.cp(source, target, { recursive: true, errorOnExist: false });
-  if (!fs.existsSync(path.join(target, "BloonsTD6.exe"))) {
-    throw new Error("The selected source did not contain BloonsTD6.exe.");
-  }
+  await fs.promises.mkdir(path.dirname(target), { recursive: true });
+  await fs.promises.cp(source, target, { recursive: true, errorOnExist: false, force: false });
+  if (!btd6Executable(target)) throw new Error("The BTD6 copy did not contain BloonsTD6.exe.");
   state.settings.gamePath = source;
   state.settings.instancePath = target;
   saveState();
   send("instance:progress", { message: "Managed copy is ready.", busy: false });
-  return { source, target };
+  return { source, target, copied: 1, existing: false };
 });
 
 ipcMain.handle("game:launch", async () => {
