@@ -100,10 +100,11 @@ async function copyManagedGame(source, target, signal, progress = () => {}) {
 // Refreshes a managed game copy from the original installation only. Files are
 // replaced only when the source is newer; size differences alone are not an
 // update signal because the managed copy may contain a newer game build.
-async function syncNewerGameFiles(source, target) {
+async function syncNewerGameFiles(source, target, progress = () => {}) {
   separateRoots(source, target);
   const excluded = new Set(['mods', 'plugins', 'melonloader', 'userdata']);
   let copied = 0;
+  let lastProgress = 0;
   async function walk(sourceDir, targetDir, topLevel = false) {
     await fs.promises.mkdir(targetDir, { recursive: true });
     for (const entry of await fs.promises.readdir(sourceDir, { withFileTypes: true })) {
@@ -125,6 +126,10 @@ async function syncNewerGameFiles(source, target) {
           await fs.promises.utimes(staged, sourceStat.atime, sourceStat.mtime);
           await fs.promises.rename(staged, to);
           copied += 1;
+          if (Date.now() - lastProgress >= 120) {
+            progress({ copied, total: null, file: entry.name });
+            lastProgress = Date.now();
+          }
         } catch (error) {
           if (['EBUSY', 'EPERM', 'EACCES', 'EEXIST'].includes(error.code)) {
             throw new Error(`Could not update ${entry.name} because the managed game file is in use. Close BloonsTD6 and try again.`);
@@ -168,6 +173,10 @@ async function syncSteamBuild(source, target, signal, progress = () => {}) {
   }
   await walk(source, target, true);
   let copied = 0;
+  let copiedBytes = 0;
+  const totalBytes = changed.reduce((total, file) => total + file.size, 0);
+  let lastProgress = 0;
+  progress({ copied, total: changed.length, copiedBytes, totalBytes });
   for (const file of changed) {
     signal?.throwIfAborted();
     const staged = `${file.to}.bananaforge-${crypto.randomUUID()}.new`;
@@ -176,7 +185,11 @@ async function syncSteamBuild(source, target, signal, progress = () => {}) {
       await fs.promises.utimes(staged, file.mtime, file.mtime);
       await fs.promises.rename(staged, file.to);
       copied += 1;
-      if (copied % 32 === 0 || copied === changed.length) progress({ copied, total: changed.length, file: path.basename(file.to) });
+      copiedBytes += file.size;
+      if (Date.now() - lastProgress >= 120 || copied === changed.length) {
+        progress({ copied, total: changed.length, copiedBytes, totalBytes, file: path.basename(file.to) });
+        lastProgress = Date.now();
+      }
     } catch (error) {
       if (['EBUSY', 'EPERM', 'EACCES', 'EEXIST'].includes(error.code)) {
         throw new Error(`Could not sync ${path.basename(file.to)} from Steam because the managed game file is in use. Close BloonsTD6 and try again.`);

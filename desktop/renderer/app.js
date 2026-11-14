@@ -6,6 +6,8 @@ let appState;
 let tabs = [];
 let activeTabId = null;
 let toastTimer;
+let appUpdateToastStatus = '';
+let appUpdateToastAt = 0;
 let openProfileDetail;
 let settingsDirty = false;
 const MOD_HOME = "https://gurrenm3.github.io/BTD-Mod-Helper/mod-browser?search=";
@@ -19,13 +21,104 @@ window.addEventListener('unhandledrejection', (event) => {
 });
 
 let reduceMotion = false;
+const taskProgressStates = new Map();
 const motionPreferences = gsap.matchMedia();
 motionPreferences.add({ all: "all", reduceMotion: "(prefers-reduced-motion: reduce)" }, (context) => {
   reduceMotion = context.conditions.reduceMotion;
+  for (const [prefix, state] of taskProgressStates) {
+    if (!state.active) continue;
+    const panel = $(`#${prefix}Progress`);
+    if (panel) panel.dataset.progressMode = 'preference-change';
+    renderTaskProgress(prefix, state);
+  }
 });
 
 let bootStartedAt = 0;
 let bootMotions = [];
+
+function renderTaskProgress(prefix, state) {
+  const panel = $(`#${prefix}Progress`);
+  const fill = $(`#${prefix}ProgressFill`);
+  const track = $(`#${prefix}ProgressTrack`);
+  const label = $(`#${prefix}ProgressLabel`);
+  const value = $(`#${prefix}ProgressValue`);
+  if (!panel || !fill || !track || !label || !value) return;
+  taskProgressStates.set(prefix, state);
+  if (!state.active) {
+    gsap.killTweensOf([panel, fill]);
+    panel.hidden = true;
+    panel.dataset.progressMode = '';
+    gsap.set(panel, { clearProps: 'all' });
+    gsap.set(fill, { clearProps: 'transform' });
+    return;
+  }
+  const wasHidden = panel.hidden;
+  panel.hidden = false;
+  label.textContent = state.label;
+  value.textContent = state.value;
+  track.setAttribute('aria-valuetext', state.label);
+  const determinate = Number.isFinite(state.percent);
+  if (determinate) track.setAttribute('aria-valuenow', String(Math.max(0, Math.min(100, Math.round(state.percent)))));
+  else track.removeAttribute('aria-valuenow');
+  if (wasHidden) {
+    if (reduceMotion) gsap.set(panel, { autoAlpha: 1, y: 0 });
+    else gsap.fromTo(panel, { autoAlpha: 0, y: 7 }, { autoAlpha: 1, y: 0, duration: 0.25, ease: 'power2.out', overwrite: 'auto' });
+  }
+
+  const mode = determinate ? 'determinate' : 'indeterminate';
+  if (panel.dataset.progressMode !== mode) {
+    gsap.killTweensOf(fill);
+    panel.dataset.progressMode = mode;
+    if (determinate) {
+      gsap.set(fill, { xPercent: 0, scaleX: 0 });
+    } else {
+      gsap.set(fill, { scaleX: 0.32, xPercent: reduceMotion ? 0 : -120 });
+      if (!reduceMotion) gsap.to(fill, { xPercent: 320, duration: 1.25, repeat: -1, ease: 'sine.inOut' });
+    }
+  }
+  if (determinate) {
+    const scaleX = Math.max(0, Math.min(1, state.percent / 100));
+    if (reduceMotion) gsap.set(fill, { scaleX });
+    else gsap.to(fill, { scaleX, duration: 0.42, ease: 'power2.out', overwrite: 'auto' });
+  }
+  panel.querySelectorAll('[data-progress-step]').forEach((step) => {
+    const stepIndex = Number(step.dataset.progressStep);
+    step.classList.toggle('is-done', stepIndex < state.phase);
+    step.classList.toggle('is-current', stepIndex === state.phase);
+  });
+}
+
+function updateAppProgress(status) {
+  const active = ['checking', 'downloading', 'verifying', 'installing'].includes(status.status);
+  if (!active) return renderTaskProgress('appUpdate', { active: false });
+  const percent = Number.isFinite(status.percent) ? status.percent : null;
+  let phase = 0, label = 'Checking GitHub releases', value = 'Working';
+  if (status.status === 'downloading') {
+    phase = 1;
+    label = `Downloading BananaForge ${status.version || ''}`.trim();
+    value = percent === null ? formatBytes(status.received || 0) : `${Math.round(percent)}%${status.total ? ` · ${formatBytes(status.received || 0)} / ${formatBytes(status.total)}` : ''}`;
+  } else if (status.status === 'verifying') {
+    phase = 2; label = 'Verifying installer checksum'; value = '100%';
+  } else if (status.status === 'installing') {
+    phase = 3; label = 'Installing and relaunching'; value = 'Ready';
+  }
+  renderTaskProgress('appUpdate', { active: true, phase, percent, label, value });
+}
+
+function updateGameProgress(status) {
+  const active = ['checking', 'syncing'].includes(status.status);
+  if (!active) return renderTaskProgress('gameUpdate', { active: false });
+  const percent = status.status === 'syncing' && Number.isFinite(status.percent) ? status.percent : null;
+  const copied = Number(status.copied) || 0;
+  const total = Number(status.total) || 0;
+  renderTaskProgress('gameUpdate', {
+    active: true,
+    phase: status.status === 'syncing' ? 1 : 0,
+    percent,
+    label: status.status === 'syncing' ? 'Copying Steam files into your managed copy' : 'Checking Steam build',
+    value: percent === null ? (status.status === 'syncing' ? `${copied} files` : 'Checking') : `${Math.round(percent)}% · ${copied} / ${total} files`
+  });
+}
 
 function setBootProgress(percent, message) {
   const fill = $('#bootProgressFill');
@@ -504,8 +597,14 @@ function fillSettings() {
   $('#autoUpdateMods').checked = appState.settings.autoUpdateMods === true;
   $('#autoUpdateApp').checked = appState.settings.autoUpdateApp !== false;
   $('#autoUpdateGame').checked = appState.settings.autoUpdateGame !== false;
-  if (appState.appUpdateStatus) $('#appUpdateStatus').textContent = appState.appUpdateStatus.message || (appState.appUpdateStatus.status === 'current' ? `BananaForge ${appState.version} is up to date.` : 'Checking BananaForge releases…');
-  if (appState.gameUpdateStatus) $('#gameUpdateStatus').textContent = appState.gameUpdateStatus.message || (appState.gameUpdateStatus.status === 'updated' ? `BTD6 copy updated from Steam · ${appState.gameUpdateStatus.copied} files.` : 'Steam build check complete.');
+  if (appState.appUpdateStatus) {
+    $('#appUpdateStatus').textContent = appState.appUpdateStatus.message || (appState.appUpdateStatus.status === 'current' ? `BananaForge ${appState.version} is up to date.` : 'Checking BananaForge releases…');
+    updateAppProgress(appState.appUpdateStatus);
+  } else updateAppProgress({ status: 'idle' });
+  if (appState.gameUpdateStatus) {
+    $('#gameUpdateStatus').textContent = appState.gameUpdateStatus.message || (appState.gameUpdateStatus.status === 'updated' ? `BTD6 copy updated from Steam · ${appState.gameUpdateStatus.copied} files.` : 'Steam build check complete.');
+    updateGameProgress(appState.gameUpdateStatus);
+  } else updateGameProgress({ status: 'idle' });
 }
 
 async function refreshMods() {
@@ -763,16 +862,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     button.disabled = true;
     button.classList.add('is-checking');
     $('#appUpdateStatus').textContent = 'Checking GitHub Releases for a verified update…';
+    updateAppProgress({ status: 'checking' });
     try { await api.checkAppUpdate(); }
     catch (error) { toast(friendlyError(error), true); }
     finally { button.disabled = false; button.classList.remove('is-checking'); }
   };
   $('#checkGameUpdate').onclick = async () => {
+    $('#checkGameUpdate').disabled = true;
     $('#gameUpdateStatus').textContent = 'Checking the Steam build and managed copy…';
-    const result = await safe(() => api.checkGameUpdate());
-    if (result?.status === 'current') $('#gameUpdateStatus').textContent = `Managed copy matches Steam build ${result.buildId}.`;
-    else if (result?.status === 'busy') $('#gameUpdateStatus').textContent = 'Sync waits until BTD6 closes.';
-    else if (result?.status === 'unavailable') $('#gameUpdateStatus').textContent = 'Set up the Steam game and managed copy to enable syncing.';
+    updateGameProgress({ status: 'checking' });
+    try {
+      const result = await safe(() => api.checkGameUpdate());
+      if (result?.status === 'current') $('#gameUpdateStatus').textContent = `Managed copy matches Steam build ${result.buildId}.`;
+      else if (result?.status === 'busy') $('#gameUpdateStatus').textContent = 'Sync waits until BTD6 closes.';
+      else if (result?.status === 'unavailable') $('#gameUpdateStatus').textContent = 'Set up the Steam game and managed copy to enable syncing.';
+    } finally {
+      $('#checkGameUpdate').disabled = false;
+    }
   };
   $("#findMelon").onclick = downloadMelonLoader;
   $("#refreshLoaderAdvice").onclick = async () => {
@@ -814,11 +920,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     await refreshState();
   });
   api.onAppUpdateStatus((value) => {
+    updateAppProgress(value);
     const status = $('#appUpdateStatus');
     if (status) status.textContent = value.message || ({ checking: 'Checking the official release…', current: `BananaForge ${value.currentVersion} is up to date.`, disabled: 'Automatic BananaForge updates are off.', unsupported: 'Automatic installer updates are available in the Windows app.' }[value.status] || '');
     const updateButton = $('#checkAppUpdate');
     if (updateButton) {
-      updateButton.disabled = ['checking', 'downloading', 'installing'].includes(value.status);
+      updateButton.disabled = ['checking', 'downloading', 'verifying', 'installing'].includes(value.status);
       updateButton.classList.toggle('is-checking', value.status === 'checking');
       updateButton.innerHTML = value.status === 'checking' ? '<span aria-hidden="true">↻</span> Checking GitHub…' : '<span aria-hidden="true">✦</span> Check for updates';
     }
@@ -829,13 +936,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         try { await api.installAppUpdate(); }
         finally { if (button) { button.disabled = false; button.classList.remove('is-checking'); } }
       });
-    } else if (value.status === 'downloading' || value.status === 'installing') updateToast(value.message || `BananaForge ${value.version} update is ready.`);
-    else if (value.status === 'failed') updateToast(value.message || 'BananaForge could not check for updates.', true);
+    } else if (['downloading', 'verifying', 'installing'].includes(value.status)) {
+      const now = Date.now();
+      if (value.status !== appUpdateToastStatus || now - appUpdateToastAt > 2600 || value.percent === 100) {
+        updateToast(value.message || `BananaForge ${value.version} update is ready.`);
+        appUpdateToastStatus = value.status;
+        appUpdateToastAt = now;
+      }
+    } else if (value.status === 'failed') updateToast(value.message || 'BananaForge could not check for updates.', true);
   });
   api.onGameAutoUpdateStatus((value) => {
+    updateGameProgress(value);
     const status = $('#gameUpdateStatus');
+    const updateButton = $('#checkGameUpdate');
+    if (updateButton) updateButton.disabled = ['checking', 'syncing'].includes(value.status);
     if (value.status === 'checking') {
       if (status) status.textContent = value.message || 'Checking Steam updates…';
+    } else if (value.status === 'syncing') {
+      if (status) status.textContent = value.message || 'Copying Steam files into the managed copy…';
     } else if (value.status === 'current' || value.status === 'busy') {
       if (status) status.textContent = value.message || (value.status === 'busy' ? 'Sync waits until BTD6 closes.' : 'Managed copy is current with Steam.');
     } else if (value.status === 'updated') {

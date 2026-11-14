@@ -219,8 +219,22 @@
               <div class="update-card-heading"><div><h3>BananaForge &amp; BTD6</h3><p>BananaForge checks GitHub Releases at startup and every six hours. New versions are verified before installation.</p></div><span class="update-indicator" aria-hidden="true">↻</span></div>
               <label class="setting-toggle" for="autoUpdateApp"><input type="checkbox" id="autoUpdateApp"><span><strong>Automatically install BananaForge updates</strong><small>When enabled, verified releases install and relaunch automatically. Turn this off to review updates and install them yourself.</small></span></label>
               <div class="update-setting-actions app-update-actions"><button class="rainbow-update-button" id="checkAppUpdate"><span aria-hidden="true">✦</span> Check for updates</button><span id="appUpdateStatus" role="status" aria-live="polite" aria-atomic="true">Ready to check the latest GitHub release.</span></div>
+              <div class="task-progress" id="appUpdateProgress" hidden>
+                <div class="task-progress-heading"><span id="appUpdateProgressLabel">Checking GitHub releases</span><strong id="appUpdateProgressValue">Working</strong></div>
+                <div class="task-progress-track" id="appUpdateProgressTrack" role="progressbar" aria-label="BananaForge update" aria-valuemin="0" aria-valuemax="100" aria-valuetext="Waiting">
+                  <span class="task-progress-fill" id="appUpdateProgressFill"></span>
+                </div>
+                <div class="task-progress-steps" aria-hidden="true"><span data-progress-step="0">Release</span><span data-progress-step="1">Download</span><span data-progress-step="2">Verify</span><span data-progress-step="3">Install</span></div>
+              </div>
               <label class="setting-toggle" for="autoUpdateGame"><input type="checkbox" id="autoUpdateGame"><span><strong>Keep managed BTD6 in sync with Steam</strong><small>Steam downloads the game update. BananaForge copies changed Steam files into the managed copy only, after BTD6 closes; it never writes to the Steam game folder.</small></span></label>
               <div class="update-setting-actions"><button class="secondary" id="checkGameUpdate">Sync Steam game files now</button><span id="gameUpdateStatus" role="status" aria-live="polite" aria-atomic="true">Waiting for a Steam game build check.</span></div>
+              <div class="task-progress" id="gameUpdateProgress" hidden>
+                <div class="task-progress-heading"><span id="gameUpdateProgressLabel">Checking Steam build</span><strong id="gameUpdateProgressValue">Working</strong></div>
+                <div class="task-progress-track" id="gameUpdateProgressTrack" role="progressbar" aria-label="Managed BTD6 copy sync" aria-valuemin="0" aria-valuemax="100" aria-valuetext="Waiting">
+                  <span class="task-progress-fill" id="gameUpdateProgressFill"></span>
+                </div>
+                <div class="task-progress-steps" aria-hidden="true"><span data-progress-step="0">Check Steam</span><span data-progress-step="1">Copy files</span><span data-progress-step="2">Ready</span></div>
+              </div>
             </article>
           </div>
           <div class="legal-card"><strong>Unofficial software</strong><p>BananaForge is not affiliated with Ninja Kiwi, Valve, MelonLoader, or mod authors. Do not use gameplay-changing mods in public multiplayer or competitive modes.</p></div>

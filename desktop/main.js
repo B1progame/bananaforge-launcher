@@ -1,6 +1,7 @@
 const { app, BrowserWindow, dialog, ipcMain, session, shell, clipboard } = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
+const { Transform } = require('node:stream');
 const { spawn, execFile } = require("node:child_process");
 const crypto = require("node:crypto");
 const { pipeline } = require('node:stream/promises');
@@ -668,27 +669,45 @@ function assertSeparateGameRoots(sourceRoot, managedRoot) {
   workspace.separateRoots(sourceRoot, managedRoot);
 }
 
-async function syncGameUpdate() {
-  const sourceRoot = originalGameRoot();
-  const managedRoot = btd6Executable(state.settings.instancePath) ? gameRoot() : "";
-  if (!sourceRoot || !managedRoot || !fs.existsSync(sourceRoot)) return { copied: 0, skipped: true };
-  const buildId = steamBuildId(sourceRoot);
-  const previousBuildId = String(state.settings.managedGameBuildId || '');
-  let result;
-  if (buildId && previousBuildId && buildId !== previousBuildId) {
-    result = await workspace.syncSteamBuild(sourceRoot, managedRoot);
-    launcherLog(`Steam BTD6 build changed ${previousBuildId} -> ${buildId}; copied ${result.copied} files to the managed game only.`);
-  } else {
-    // Keep the older safe, timestamp-based refresh for existing installations
-    // that predate build tracking, then establish the current Steam baseline.
-    result = await workspace.syncNewerGameFiles(sourceRoot, managedRoot);
-    if (buildId && !previousBuildId) await workspace.alignManagedGameTimestamps(sourceRoot, managedRoot);
+function reportManagedGameSyncProgress({ copied = 0, total = null, file = '' } = {}) {
+  const hasTotal = Number.isFinite(total) && total > 0;
+  const percent = hasTotal ? Math.min(100, Math.floor((copied / total) * 100)) : null;
+  const detail = hasTotal ? `${copied} of ${total} files` : `${copied} files copied`;
+  gameUpdateEvent({
+    status: 'syncing', copied, total: hasTotal ? total : null, percent, file,
+    message: file ? `Copying Steam files · ${detail} · ${file}` : `Preparing Steam copy · ${detail}`
+  });
+}
+
+async function syncGameUpdate(progress = reportManagedGameSyncProgress) {
+  try {
+    const sourceRoot = originalGameRoot();
+    const managedRoot = btd6Executable(state.settings.instancePath) ? gameRoot() : "";
+    if (!sourceRoot || !managedRoot || !fs.existsSync(sourceRoot)) {
+      gameUpdateEvent({ status: 'current', message: 'Steam source or managed copy is unavailable; sync was skipped.' });
+      return { copied: 0, skipped: true };
+    }
+    const buildId = steamBuildId(sourceRoot);
+    const previousBuildId = String(state.settings.managedGameBuildId || '');
+    let result;
+    if (buildId && previousBuildId && buildId !== previousBuildId) {
+      result = await workspace.syncSteamBuild(sourceRoot, managedRoot, undefined, progress);
+      launcherLog(`Steam BTD6 build changed ${previousBuildId} -> ${buildId}; copied ${result.copied} files to the managed game only.`);
+    } else {
+      // Keep the older safe, timestamp-based refresh for existing installations
+      // that predate build tracking, then establish the current Steam baseline.
+      result = await workspace.syncNewerGameFiles(sourceRoot, managedRoot, progress);
+      if (buildId && !previousBuildId) await workspace.alignManagedGameTimestamps(sourceRoot, managedRoot);
+    }
+    if (buildId && buildId !== previousBuildId) {
+      state.settings.managedGameBuildId = buildId;
+      saveState();
+    }
+    return { ...result, buildId, previousBuildId, buildChanged: Boolean(buildId && previousBuildId && buildId !== previousBuildId) };
+  } catch (error) {
+    gameUpdateEvent({ status: 'failed', message: `Steam sync failed: ${String(error.message || error)}` });
+    throw error;
   }
-  if (buildId && buildId !== previousBuildId) {
-    state.settings.managedGameBuildId = buildId;
-    saveState();
-  }
-  return { ...result, buildId, previousBuildId, buildChanged: Boolean(buildId && previousBuildId && buildId !== previousBuildId) };
 }
 
 function compareVersions(left, right) {
@@ -774,29 +793,58 @@ async function checkBananaForgeUpdate({ force = false, install = state.settings.
     if (!installerAsset || (!installerAsset.digest && !checksumAsset)) {
       throw new Error(`BananaForge ${version} is published without a verifiable Windows installer/checksum. No update was installed.`);
     }
-    updateEvent({ status: 'downloading', version, message: `Downloading BananaForge ${version}…` });
+    updateEvent({ status: 'downloading', version, received: 0, total: Number(installerAsset.size) || 0, percent: 0, message: `Preparing BananaForge ${version} download…` });
     const fileRoot = path.join(storageRoot, 'updates');
     await fs.promises.mkdir(fileRoot, { recursive: true });
     const file = path.join(fileRoot, filename);
     const temporary = `${file}.download`;
     await fs.promises.rm(temporary, { force: true });
     const installerResponse = await fetchGithubReleaseAsset(installerAsset);
-    await pipeline(installerResponse.body, fs.createWriteStream(temporary, { flags: 'wx' }));
-    const hash = crypto.createHash('sha256');
-    for await (const chunk of fs.createReadStream(temporary)) hash.update(chunk);
-    const actualHash = hash.digest('hex');
-    let expectedHash = String(installerAsset.digest || '').replace(/^sha256:/i, '').toLowerCase();
-    if (!expectedHash && checksumAsset) {
-      const checksumResponse = await fetchGithubReleaseAsset(checksumAsset, { limit: 4096 });
-      const checksumText = await checksumResponse.text();
-      expectedHash = checksumText.match(/\b([a-f0-9]{64})\b/i)?.[1]?.toLowerCase() || '';
-    }
-    if (!/^[a-f0-9]{64}$/.test(expectedHash) || actualHash !== expectedHash) {
+    const expectedLength = Number(installerResponse.headers.get('content-length')) || Number(installerAsset.size) || 0;
+    let received = 0;
+    let lastPercent = -1;
+    let lastProgressAt = 0;
+    const progressStream = new Transform({
+      transform(chunk, _encoding, callback) {
+        received += chunk.length;
+        const percent = expectedLength ? Math.min(99, Math.floor((received / expectedLength) * 100)) : null;
+        const now = Date.now();
+        if (percent !== lastPercent || now - lastProgressAt >= 120) {
+          updateEvent({
+            status: 'downloading', version, received, total: expectedLength, percent,
+            message: percent === null ? `Downloading BananaForge ${version}…` : `Downloading BananaForge ${version} · ${percent}%`
+          });
+          lastPercent = percent;
+          lastProgressAt = now;
+        }
+        callback(null, chunk);
+      }
+    });
+    try {
+      await pipeline(installerResponse.body, progressStream, fs.createWriteStream(temporary, { flags: 'wx' }));
+      updateEvent({ status: 'downloading', version, received, total: expectedLength, percent: 100, message: 'Download complete · checking installer…' });
+      updateEvent({ status: 'verifying', version, received, total: expectedLength, percent: 100, message: `Verifying the BananaForge ${version} checksum…` });
+      const hash = crypto.createHash('sha256');
+      for await (const chunk of fs.createReadStream(temporary)) hash.update(chunk);
+      const actualHash = hash.digest('hex');
+      let expectedHash = String(installerAsset.digest || '').replace(/^sha256:/i, '').toLowerCase();
+      if (!expectedHash && checksumAsset) {
+        const checksumResponse = await fetchGithubReleaseAsset(checksumAsset, { limit: 4096 });
+        const checksumText = await checksumResponse.text();
+        expectedHash = checksumText.match(/\b([a-f0-9]{64})\b/i)?.[1]?.toLowerCase() || '';
+      }
+      if (!/^[a-f0-9]{64}$/.test(expectedHash) || actualHash !== expectedHash) {
+        throw new Error('The BananaForge update checksum did not match. The downloaded installer was discarded.');
+      }
+      await fs.promises.rename(temporary, file);
+    } catch (error) {
       await fs.promises.rm(temporary, { force: true });
-      throw new Error('The BananaForge update checksum did not match. The downloaded installer was discarded.');
+      throw error;
     }
-    await fs.promises.rename(temporary, file);
-    if (!await launchVerifiedBananaForgeUpdate(file, version)) return { status: 'downloaded', version };
+    if (!await launchVerifiedBananaForgeUpdate(file, version)) {
+      updateEvent({ status: 'downloaded', version, received, total: expectedLength, percent: 100, message: `BananaForge ${version} is downloaded and verified.` });
+      return { status: 'downloaded', version };
+    }
     return { status: 'installing', version };
   })().catch((error) => {
     const message = String(error.message || error);
@@ -1657,6 +1705,10 @@ handle("game:launch", async () => {
       if (state.settings.autoUpdateGame !== false) {
         const update = await syncGameUpdate();
         copied = update.copied;
+        gameUpdateEvent({
+          status: copied ? 'updated' : 'current', buildId: update.buildId, copied,
+          message: copied ? `Updated the managed BTD6 copy from Steam · ${copied} files.` : 'Managed BTD6 copy is current with Steam.'
+        });
       }
       // Profile deployment remains separate from the optional Steam-file sync.
       syncActiveProfile(true);
