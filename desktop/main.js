@@ -740,6 +740,52 @@ async function fetchGithubReleaseAsset(asset, { limit = 1024 * 1024 * 1024 } = {
   return response;
 }
 
+async function latestDesktopReleaseFromPublicFeed() {
+  const response = await fetch('https://github.com/B1progame/bananaforge-launcher/releases.atom', {
+    headers: { Accept: 'application/atom+xml, application/xml, text/xml', 'User-Agent': `BananaForge/${app.getVersion()}` },
+    signal: AbortSignal.timeout(25000)
+  });
+  if (!response.ok) throw new Error(`GitHub’s public release feed returned HTTP ${response.status}.`);
+  const xml = await response.text();
+  const tags = new Set();
+  const entries = xml.match(/<entry\b[\s\S]*?<\/entry>/gi) || [];
+  for (const entry of entries) {
+    const links = entry.match(/<link\b[^>]*\bhref=["']([^"']+)["'][^>]*>/gi) || [];
+    for (const linkTag of links) {
+      const href = linkTag.match(/\bhref=["']([^"']+)["']/i)?.[1]?.replace(/&amp;/g, '&');
+      if (!href) continue;
+      try {
+        const url = new URL(href);
+        const match = url.pathname.match(/^\/B1progame\/bananaforge-launcher\/releases\/tag\/(desktop-v\d+\.\d+\.\d+)$/i);
+        if (url.protocol === 'https:' && url.hostname === 'github.com' && match) tags.add(match[1]);
+      } catch { /* Ignore non-release Atom links. */ }
+    }
+  }
+  const tag = [...tags].sort((a, b) => compareVersions(b.slice('desktop-v'.length), a.slice('desktop-v'.length)))[0];
+  return tag ? { tag_name: tag, html_url: `https://github.com/B1progame/bananaforge-launcher/releases/tag/${tag}`, assets: [], atomFallback: true } : null;
+}
+
+async function latestDesktopReleases() {
+  const response = await fetch('https://api.github.com/repos/B1progame/bananaforge-launcher/releases?per_page=100', {
+    headers: { Accept: 'application/vnd.github+json', 'User-Agent': `BananaForge/${app.getVersion()}` },
+    signal: AbortSignal.timeout(25000)
+  });
+  if (response.ok) {
+    const releases = await response.json();
+    return (Array.isArray(releases) ? releases : [])
+      .filter((item) => !item.draft && !item.prerelease && /^desktop-v\d+\.\d+\.\d+$/.test(item.tag_name || ''))
+      .sort((a, b) => compareVersions(b.tag_name.slice('desktop-v'.length), a.tag_name.slice('desktop-v'.length)));
+  }
+  const apiError = `GitHub Releases API returned HTTP ${response.status}.`;
+  try {
+    const release = await latestDesktopReleaseFromPublicFeed();
+    if (release) return [release];
+    throw new Error('The public release feed contained no BananaForge desktop release.');
+  } catch (error) {
+    throw new Error(`${apiError} The public release feed fallback failed: ${error.message || error}`);
+  }
+}
+
 async function launchVerifiedBananaForgeUpdate(file, version) {
   if (process.platform !== 'win32' || !app.isPackaged) return false;
   const appExecutable = process.execPath;
@@ -792,15 +838,7 @@ async function checkBananaForgeUpdate({ force = false, install = state.settings.
   if (!app.isPackaged || process.platform !== 'win32') return { status: 'unsupported' };
   appUpdateCheckPromise = (async () => {
     updateEvent({ status: 'checking', currentVersion: app.getVersion() });
-    const response = await fetch('https://api.github.com/repos/B1progame/bananaforge-launcher/releases?per_page=100', {
-      headers: { Accept: 'application/vnd.github+json', 'User-Agent': `BananaForge/${app.getVersion()}` },
-      signal: AbortSignal.timeout(25000)
-    });
-    if (!response.ok) throw new Error(`Could not check the BananaForge release (HTTP ${response.status}).`);
-    const releases = await response.json();
-    const desktopReleases = (Array.isArray(releases) ? releases : [])
-      .filter((item) => !item.draft && !item.prerelease && /^desktop-v\d+\.\d+\.\d+$/.test(item.tag_name || ''))
-      .sort((a, b) => compareVersions(b.tag_name.slice('desktop-v'.length), a.tag_name.slice('desktop-v'.length)));
+    const desktopReleases = await latestDesktopReleases();
     const release = desktopReleases[0];
     if (!release) {
       updateEvent({ status: 'current', currentVersion: app.getVersion(), message: 'No desktop installer release is published yet.' });
@@ -818,8 +856,9 @@ async function checkBananaForgeUpdate({ force = false, install = state.settings.
       return { status: 'available', version, releaseUrl: release.html_url };
     }
     const filename = `BananaForge-Setup-${version}.exe`;
-    const installerAsset = (release.assets || []).find((asset) => asset.name.toLowerCase() === filename.toLowerCase());
-    const checksumAsset = (release.assets || []).find((asset) => asset.name.toLowerCase() === `${filename}.sha256`.toLowerCase());
+    const feedAsset = (name) => ({ name, size: 0, digest: null, browser_download_url: `https://github.com/B1progame/bananaforge-launcher/releases/download/${encodeURIComponent(release.tag_name)}/${encodeURIComponent(name)}` });
+    const installerAsset = (release.assets || []).find((asset) => asset.name.toLowerCase() === filename.toLowerCase()) || (release.atomFallback ? feedAsset(filename) : null);
+    const checksumAsset = (release.assets || []).find((asset) => asset.name.toLowerCase() === `${filename}.sha256`.toLowerCase()) || (release.atomFallback ? feedAsset(`${filename}.sha256`) : null);
     if (!installerAsset || (!installerAsset.digest && !checksumAsset)) {
       throw new Error(`BananaForge ${version} is published without a verifiable Windows installer/checksum. No update was installed.`);
     }
