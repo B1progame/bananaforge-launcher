@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="640" viewBox="0 0 1440 640" role="img" aria-labelledby="title desc">
+  <title id="title">BananaForge desktop update flow</title>
+  <desc id="desc">A version tag starts a Windows build, which publishes a verified installer to GitHub Releases. BananaForge checks for releases and either installs automatically or waits for the user.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#171922"/><stop offset="1" stop-color="#252438"/></linearGradient>
+    <linearGradient id="spectrum" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#ffc968"/><stop offset=".25" stop-color="#ff829d"/><stop offset=".52" stop-color="#c28cff"/><stop offset=".76" stop-color="#70b8ff"/><stop offset="1" stop-color="#68dfc2"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-30%" width="140%" height="170%"><feDropShadow dx="0" dy="13" stdDeviation="16" flood-color="#080910" flood-opacity=".48"/></filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#78829c"/></marker>
+  </defs>
+  <rect width="1440" height="640" rx="28" fill="url(#bg)"/>
+  <circle cx="1270" cy="96" r="185" fill="#9b75ff" opacity=".06"/><circle cx="130" cy="580" r="220" fill="#57c9b3" opacity=".05"/>
+  <text x="72" y="75" fill="#f5f3f9" font-family="Segoe UI,Arial,sans-serif" font-size="30" font-weight="700">Updates you can trust</text>
+  <text x="72" y="111" fill="#aeb4c6" font-family="Segoe UI,Arial,sans-serif" font-size="17">One signed-off release path, with automatic or user-controlled installs.</text>
+  <g filter="url(#shadow)" font-family="Segoe UI,Arial,sans-serif">
+    <rect x="72" y="170" width="260" height="150" rx="18" fill="#242633" stroke="#414455"/>
+    <circle cx="108" cy="208" r="17" fill="#59462a"/><text x="108" y="214" text-anchor="middle" fill="#ffd27d" font-size="16" font-weight="700">1</text>
+    <text x="98" y="260" fill="#f4f2f8" font-size="20" font-weight="650">Push a version tag</text><text x="98" y="288" fill="#aeb4c6" font-size="14">desktop-vX.Y.Z</text>
+    <rect x="390" y="170" width="260" height="150" rx="18" fill="#242633" stroke="#414455"/>
+    <circle cx="426" cy="208" r="17" fill="#344563"/><text x="426" y="214" text-anchor="middle" fill="#a8c8ff" font-size="16" font-weight="700">2</text>
+    <text x="416" y="260" fill="#f4f2f8" font-size="20" font-weight="650">Build on GitHub</text><text x="416" y="288" fill="#aeb4c6" font-size="14">Version-checked Windows installer</text>
+    <rect x="708" y="170" width="260" height="150" rx="18" fill="#242633" stroke="#414455"/>
+    <circle cx="744" cy="208" r="17" fill="#443454"/><text x="744" y="214" text-anchor="middle" fill="#e5b6ff" font-size="16" font-weight="700">3</text>
+    <text x="734" y="260" fill="#f4f2f8" font-size="20" font-weight="650">Publish release</text><text x="734" y="288" fill="#aeb4c6" font-size="14">Installer + SHA-256 checksum</text>
+    <rect x="1026" y="170" width="340" height="150" rx="18" fill="#242633" stroke="#67543c"/>
+    <circle cx="1062" cy="208" r="17" fill="#59462a"/><text x="1062" y="214" text-anchor="middle" fill="#ffd27d" font-size="16" font-weight="700">4</text>
+    <text x="1052" y="260" fill="#f4f2f8" font-size="20" font-weight="650">BananaForge checks</text><text x="1052" y="288" fill="#aeb4c6" font-size="14">At startup + every six hours</text>
+  </g>
+  <g fill="none" stroke="#78829c" stroke-width="2.5" marker-end="url(#arrow)"><path d="M340 245h40"/><path d="M658 245h40"/><path d="M976 245h40"/><path d="M1196 340v48H438v27"/><path d="M1196 388h460v27"/></g>
+  <g font-family="Segoe UI,Arial,sans-serif">
+    <rect x="214" y="430" width="448" height="126" rx="18" fill="#222a2a" stroke="#47635d"/>
+    <rect x="214" y="430" width="448" height="4" rx="2" fill="#6bd5b8"/>
+    <text x="246" y="476" fill="#d7fff3" font-size="19" font-weight="700">Automatic install enabled</text>
+    <text x="246" y="508" fill="#b5c9c4" font-size="15">Verify checksum → install → relaunch</text>
+    <rect x="778" y="430" width="448" height="126" rx="18" fill="#292632" stroke="#625078"/>
+    <rect x="778" y="430" width="448" height="4" rx="2" fill="url(#spectrum)"/>
+    <text x="810" y="476" fill="#f5e6ff" font-size="19" font-weight="700">Manual review mode</text>
+    <text x="810" y="508" fill="#c6bacf" font-size="15">Show a top-right notice → user chooses Install</text>
+  </g>
+</svg>

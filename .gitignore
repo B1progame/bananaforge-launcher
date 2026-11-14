@@ -7,4 +7,6 @@ dist/
 *.spec
 desktop/node_modules/
 desktop/dist/
+desktop/dist-*/
 desktop/*.log
+desktop/.qa-runs/

@@ -6,57 +6,64 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-src https: http:;">
     <title>BananaForge</title>
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="workspace.css" />
   </head>
   <body>
-    <div id="app">
+    <section class="boot-screen" id="bootScreen" role="status" aria-live="polite" aria-busy="true" aria-labelledby="bootTitle">
+      <div class="boot-grain" aria-hidden="true"></div>
+      <div class="boot-glow boot-glow-one" aria-hidden="true"></div>
+      <div class="boot-glow boot-glow-two" aria-hidden="true"></div>
+      <div class="boot-content">
+        <div class="boot-emblem" aria-hidden="true">
+          <span class="boot-orbit boot-orbit-outer"></span><span class="boot-orbit boot-orbit-inner"></span>
+          <span class="boot-orbit-dot"></span><span class="boot-emblem-backdrop"></span>
+          <img src="../assets/bananaforge.png" alt="" />
+        </div>
+        <div class="boot-brand-row"><span class="boot-eyebrow">BANANAFORGE <i></i> BTD6 WORKSPACE</span><span class="boot-version">LOCAL · READYING</span></div>
+        <h1 id="bootTitle">Your next run,<br><span>being prepared.</span></h1>
+        <p class="boot-description">Gathering your profiles, mods, and game setup.</p>
+        <div class="boot-progress-track" aria-hidden="true"><span class="boot-progress-fill" id="bootProgressFill"></span><span class="boot-progress-glint"></span></div>
+        <div class="boot-status-row"><span class="boot-status-dot"></span><span id="bootStatusText">Opening your local workspace</span><span class="boot-loading-dots" aria-hidden="true"><i></i><i></i><i></i></span></div>
+        <button class="secondary boot-retry" id="bootRetry" type="button" hidden>Retry workspace loading</button>
+        <div class="boot-footer"><span>PROFILES</span><i></i><span>MODS</span><i></i><span>GAME LOGS</span></div>
+      </div>
+    </section>
+    <div id="app" aria-hidden="true" inert>
       <aside class="sidebar">
         <div class="brand">
           <img src="../assets/bananaforge.png" alt="" />
-          <div><strong>BananaForge</strong><span>MODLOADER</span></div>
+          <div><strong>BananaForge</strong><span>BTD6 workspace</span></div>
         </div>
 
         <nav id="nav">
-          <button class="nav-item active" data-page="dashboard"><span>⌂</span>Home</button>
-          <button class="nav-item" data-page="browser"><span>⌕</span>Mod Browser</button>
-          <button class="nav-item" data-page="mods"><span>⬡</span>Installed Mods</button>
-          <button class="nav-item" data-page="profiles"><span>◈</span>Profiles</button>
-          <button class="nav-item" data-page="downloads"><span>⇩</span>Downloads <b id="downloadBadge" hidden>0</b></button>
-          <button class="nav-item" data-page="settings"><span>⚙</span>Settings</button>
+          <button class="nav-item active" data-page="dashboard" aria-current="page"><span aria-hidden="true">⌂</span>Home</button>
+          <button class="nav-item" data-page="browser"><span aria-hidden="true">⌕</span>Mod Browser</button>
+          <button class="nav-item" data-page="mods"><span aria-hidden="true">⬡</span>Installed Mods</button>
+          <button class="nav-item" data-page="profiles"><span aria-hidden="true">◈</span>Profiles</button>
+          <button class="nav-item" data-page="downloads"><span aria-hidden="true">⇩</span>Downloads <b id="downloadBadge" hidden>0</b></button>
+          <button class="nav-item" data-page="logs"><span aria-hidden="true">≡</span>Game logs</button>
+          <button class="nav-item" data-page="setup"><span aria-hidden="true">↓</span>Install &amp; setup</button>
+          <button class="nav-item" data-page="settings"><span aria-hidden="true">⚙</span>Settings</button>
         </nav>
 
         <div class="sidebar-bottom">
-          <div class="connection"><i></i><span>LOCAL · NO ANALYTICS</span></div>
+          <div class="connection"><i></i><span>Local workspace</span></div>
           <small id="versionLabel">BananaForge</small>
         </div>
       </aside>
 
       <main class="workspace">
         <section class="page active" id="page-dashboard">
-          <header class="page-header">
-            <div><span class="eyebrow">YOUR MODDING WORKSPACE</span><h1>Ready when you are.</h1><p>Launch BTD6, switch profiles, browse mods, and keep everything organized.</p></div>
-            <button class="primary large" id="launchGameTop">▶ Launch BTD6</button>
-          </header>
-
-          <div class="hero-card">
-            <div class="hero-copy">
-              <span class="pill success">● WORKSPACE READY</span>
-              <h2>One place for your<br><em>entire mod setup.</em></h2>
-              <p>Your active profile is synchronized before launch. Downloads stay visible and nothing is installed without your action.</p>
-              <div class="actions">
-                <button class="primary" id="launchGameHero">▶ Launch game</button>
-                <button class="secondary" data-go="browser">Browse mods</button>
-              </div>
-            </div>
-            <div class="forge-orbit">
-              <div class="orbit one"></div><div class="orbit two"></div>
-              <div class="forge-mark"><img src="../assets/bananaforge.png" alt=""></div>
-            </div>
+          <header class="page-header"><div><h1>Your workspace</h1><p>Everything you need for your next BTD6 session.</p></div></header>
+          <div class="home-launch">
+            <div><span class="pill" id="workspaceStatus">Checking game…</span><h2 id="homeProfileName">Default</h2><p id="homeProfileSummary">Your active profile is ready for your next session.</p></div>
+            <div class="actions"><button class="primary large" id="launchGameHero">Launch game</button><button class="secondary" id="homeOpenProfile">Manage profile</button></div>
           </div>
 
           <div class="status-grid">
-            <article class="status-card"><div class="card-top"><span>ACTIVE PROFILE</span><i class="blue"></i></div><strong id="activeProfileName">Default</strong><p id="activeProfileCount">0 installed mods</p><button data-go="profiles">Manage profiles →</button></article>
-            <article class="status-card"><div class="card-top"><span>GAME INSTANCE</span><i class="gold"></i></div><strong id="gameStatus">Not configured</strong><p id="gamePathText">Choose BTD6 in Settings</p><button data-go="settings">Configure game →</button></article>
-            <article class="status-card"><div class="card-top"><span>MELONLOADER</span><i class="violet"></i></div><strong id="melonStatus">Installer not selected</strong><p>Official installer or update flow</p><button id="runMelonCard">Open MelonLoader →</button></article>
+            <article class="status-card"><div class="card-top"><span>Active profile</span><i class="blue"></i></div><div><strong id="activeProfileName">Default</strong><p id="activeProfileCount">0 installed mods</p></div><button data-go="profiles">Manage profiles →</button></article>
+            <article class="status-card"><div class="card-top"><span>Game installation</span><i class="gold"></i></div><div><strong id="gameStatus">Not configured</strong><p id="gamePathText">Choose BTD6 in Settings</p></div><button data-go="settings">Configure game →</button></article>
+            <article class="status-card"><div class="card-top"><span>Mod runtime</span><i class="violet"></i></div><div><strong id="melonStatus">Not installed</strong><p id="melonStatusHelp">Install the runtime into your managed game.</p></div><button id="runMelonCard">Open MelonLoader →</button></article>
           </div>
 
           <div class="quick-row">
@@ -69,57 +76,74 @@
         <section class="page browser-page" id="page-browser">
           <div class="browser-shell">
             <div class="browser-top">
-              <div class="browser-tabs" id="browserTabs"></div>
-              <button class="new-tab" id="newTab" title="New tab">＋</button>
+              <div class="browser-tabs" id="browserTabs" role="tablist" aria-label="Browser tabs"></div>
+              <button class="new-tab" id="newTab" title="New tab" aria-label="New tab">＋</button>
             </div>
             <div class="browser-toolbar">
-              <button id="browserBack" title="Back">←</button>
-              <button id="browserForward" title="Forward">→</button>
-              <button id="browserReload" title="Reload">↻</button>
-              <div class="address-wrap"><span>⌕</span><input id="addressBar" spellcheck="false" placeholder="Search or enter a website" /></div>
-              <button id="browserHome" title="Mod home">⌂</button>
-              <button id="browserExternal" title="Open in default browser">↗</button>
+              <button id="browserBack" title="Back" aria-label="Back">←</button>
+              <button id="browserForward" title="Forward" aria-label="Forward">→</button>
+              <button id="browserReload" title="Reload" aria-label="Reload page">↻</button>
+              <div class="address-wrap"><span aria-hidden="true">⌕</span><input id="addressBar" aria-label="Search or enter a website" spellcheck="false" placeholder="Search or enter a website" /></div>
+              <button id="browserHome" title="Mod home" aria-label="Open mod browser home">⌂</button>
+              <button id="browserExternal" title="Open in default browser" aria-label="Open in default browser">↗</button>
             </div>
-            <div class="webview-stack" id="webviewStack"></div>
+            <div class="webview-stack" id="webviewStack"></div><div class="browser-error" id="browserError" hidden><h2>Could not load this page</h2><p id="browserErrorMessage"></p><div class="actions"><button class="primary" id="browserRetry">Try again</button><button class="secondary" id="browserErrorExternal">Open in browser</button></div></div>
           </div>
         </section>
 
         <section class="page" id="page-mods">
           <header class="page-header compact">
-            <div><span class="eyebrow">ACTIVE PROFILE</span><h1>Installed mods</h1><p>DLL mods stored in the active profile are synchronized to the managed game before launch.</p></div>
-            <div class="actions"><button class="secondary" data-go="browser">Browse mods</button><button class="primary" id="installMod">＋ Install downloaded DLL</button></div>
+            <div><span class="eyebrow">ACTIVE PROFILE</span><h1>Installed mods</h1><p id="modsRuntimeSummary">DLL mods are checked against the most recent BananaForge launch log.</p></div>
+            <div class="actions mods-page-actions"><span id="modsUpdateStatus" role="status" aria-live="polite" aria-atomic="true">Check installed mods for newer releases.</span><button class="secondary" id="checkModUpdatesMods">Check for updates</button><button class="secondary" data-go="browser">Browse mods</button><button class="secondary" id="installModLink">Install from GitHub link</button><button class="primary" id="installMod">＋ Install downloaded DLL</button></div>
           </header>
           <div class="notice"><span>i</span><div><strong>Review downloads before installing</strong><p>BananaForge does not execute downloaded mods. Only DLL files you choose are copied into the active profile.</p></div></div>
           <div class="table-card">
-            <div class="table-head"><span>MOD FILE</span><span>PROFILE</span><span>STATUS</span><span></span></div>
+            <div class="table-head"><span>Mod file</span><span>Profile</span><span>Status</span><span></span></div>
             <div id="modsList" class="list-empty">No mods installed in this profile.</div>
           </div>
         </section>
 
         <section class="page" id="page-profiles">
           <header class="page-header compact">
-            <div><span class="eyebrow">SEPARATE MOD SETS</span><h1>Profiles</h1><p>Switch between different collections without mixing their files.</p></div>
-            <button class="primary" id="newProfile">＋ New profile</button>
+            <div><span class="eyebrow">YOUR LIBRARY</span><h1>Profiles<span class="heading-count" id="profileTotal">0</span></h1><p>Keep each mod collection separate. Choose a profile to manage or play.</p></div>
+            <div class="actions"><button class="secondary" id="importProfile">Import package</button><button class="primary" id="newProfile">＋ Create profile</button></div>
           </header>
+          <div class="library-toolbar"><input type="search" id="profileSearch" aria-label="Search profiles" placeholder="Search your profiles…"><select id="profileSort" aria-label="Sort profiles"><option value="recent">Recently created</option><option value="name">Name A–Z</option><option value="mods">Most mods</option></select><span id="profileLibraryMeta"></span></div>
           <div id="profileGrid" class="profile-grid"></div>
         </section>
 
         <section class="page" id="page-profile-detail">
-          <header class="page-header compact">
+          <button class="text-button back-link" id="backToProfiles">← All profiles</button>
+          <header class="page-header compact profile-detail-header">
             <div>
-              <span class="eyebrow">PROFILE MANIFEST</span>
+              <span class="eyebrow" id="profileDetailBadge">MOD COLLECTION</span>
               <h1 id="profileDetailName">Profile</h1>
               <p id="profileDetailMeta">Loading profile mods…</p>
             </div>
-            <div class="actions"><button class="secondary" id="openProfileManifest">Show profile.json</button><button class="primary" id="backToProfiles">← Profiles</button></div>
+            <div class="actions"><button class="secondary" id="profileDetailFolder">Open folder</button><button class="secondary" id="profileDetailActivate">Use profile</button><button class="primary" id="profileDetailPlay">Play profile</button></div>
           </header>
-          <div class="manifest-path"><span>profile.json</span><code id="profileManifestPath"></code></div>
-          <div id="profileDetailMods" class="profile-detail-mods list-empty">Open a profile to see its mods.</div>
+          <div class="profile-subnav" aria-label="Profile sections"><button class="selected" data-profile-tab="content" aria-pressed="true">Content</button><button data-profile-tab="settings" aria-pressed="false">Profile settings</button><button id="profileDetailLogs">Game logs ↗</button><div class="subnav-spacer"></div><button id="duplicateProfile">Duplicate</button><button id="exportProfile">Export package</button></div>
+          <div id="profileContentPanel"><div class="library-toolbar"><input type="search" id="profileModSearch" aria-label="Search profile mods" placeholder="Search installed mods…"><button class="secondary" id="profileAddMod">Add DLL files</button><button class="secondary" data-go="browser">Browse mods</button></div><div id="profileDetailMods" class="profile-content-list list-empty">Open a profile to see its mods.</div></div>
+          <div id="profileSettingsPanel" hidden><form id="profileEditForm" class="workspace-form"><h2>Make this profile yours</h2><label for="profileEditName">Profile name</label><input id="profileEditName" maxlength="60" required><label for="profileEditDescription">Description</label><textarea id="profileEditDescription" maxlength="240" rows="3" placeholder="What do you use this collection for?"></textarea><label for="profileEditAccent">Profile color</label><select id="profileEditAccent"><option value="amber">Amber</option><option value="mint">Mint</option><option value="blue">Blue</option><option value="violet">Violet</option><option value="rose">Rose</option></select><div class="form-footer"><button type="submit" class="primary">Save profile</button><button type="button" id="deleteProfile" class="danger-button">Delete profile</button></div></form><div class="manifest-path"><button class="text-button" id="openProfileManifest">Show manifest</button><code id="profileManifestPath"></code></div></div>
+        </section>
+
+        <section class="page" id="page-logs">
+          <header class="page-header compact"><div><span class="eyebrow">TROUBLESHOOTING</span><h1>Game logs</h1><p>Follow MelonLoader, Unity, and launcher activity as it happens.</p></div><span class="live-badge" id="logLiveBadge">Live · 2s</span></header>
+          <div class="log-controls"><select id="logSource" aria-label="Log file"><option value="">Finding log files…</option></select><button class="secondary" id="refreshLogs">Refresh files</button><button class="secondary" id="pauseLogs">Pause</button><button class="secondary" id="copyLogs">Copy log tail</button><button class="secondary" id="exportLogs">Save full log</button><button class="secondary" id="openLogs">Show file</button></div>
+          <div class="library-toolbar"><input type="search" id="logSearch" aria-label="Search log text" placeholder="Filter log messages…"><select id="logLevel" aria-label="Log level"><option value="all">All messages</option><option value="error">Errors &amp; exceptions</option><option value="warn">Warnings &amp; errors</option></select><label class="inline-check"><input type="checkbox" id="logFollow" checked>Follow latest</label></div>
+          <div class="log-meta"><span id="logStatus" role="status">Waiting for logs</span><span id="logLineCount"></span></div><div class="log-console" id="logConsole" tabindex="0" aria-label="Game log output"><div class="console-empty">Launch BTD6 to generate game logs.</div></div><p class="log-path" id="logFilePath"></p>
+        </section>
+
+        <section class="page" id="page-setup">
+          <header class="page-header compact"><div><span class="eyebrow">BUILD YOUR WORKSPACE</span><h1>Install &amp; setup</h1><p>Choose where your game copy and packages are installed.</p></div><span class="subtle-tag">BTD6 for Windows</span></header>
+          <div class="setup-layout"><div class="setup-main"><section class="workspace-form"><div class="section-heading"><span class="step-number">1</span><div><h2>Choose your folders</h2><p>Keep the original installation and your mod workspace separate.</p></div></div><label for="setupOriginalPath">Original BTD6 executable</label><div class="field-row"><input id="setupOriginalPath" placeholder="Select BloonsTD6.exe" readonly><button id="setupChooseGame">Browse</button></div><label for="setupManagedPath">Managed game location</label><div class="field-row"><input id="setupManagedPath" placeholder="D:\Games\BananaForge\BTD6"><button id="setupBrowseManaged">Browse</button></div><label for="setupDownloadPath">Package downloads</label><div class="field-row"><input id="setupDownloadPath"><button id="setupBrowseDownloads">Browse</button></div><p class="field-help" id="setupStoragePath"></p></section>
+          <section class="workspace-form package-section"><div class="section-heading"><span class="step-number">2</span><div><h2>Pick your packages</h2><p>Download only what you need. You can add more later.</p></div></div><label class="package-option"><input type="checkbox" id="pkgManaged" value="managed-copy" checked><div><strong>Managed BTD6 copy <span class="subtle-tag">Local copy</span></strong><small>Copies your installed game to the location above. Your original stays separate.</small></div></label><label class="package-option"><input type="checkbox" id="pkgMelon" value="melonloader" checked><div><strong>MelonLoader installer <span class="subtle-tag">Official download</span></strong><small>Downloads the official installer. Open it afterward and select the managed game's executable.</small></div></label><label class="package-option"><input type="checkbox" id="pkgHelper" value="modhelper" checked><div><strong>BTD Mod Helper <span class="subtle-tag">Official download</span></strong><small>Adds the latest helper DLL to your chosen profile. Requires MelonLoader to run.</small></div></label><label for="setupProfile">Install Mod Helper into</label><select id="setupProfile"></select></section></div>
+          <aside class="setup-summary"><span class="eyebrow">INSTALLATION PLAN</span><h2 id="setupPackageCount">3 packages</h2><p>Local game files are copied. Optional packages are downloaded from their authors on GitHub.</p><div class="summary-divider"></div><section class="loader-advice" aria-labelledby="loaderAdviceTitle"><div class="loader-advice-heading"><h3 id="loaderAdviceTitle">MelonLoader version advice</h3><button class="text-button" id="refreshLoaderAdvice" type="button">Check sources</button></div><p id="loaderAdviceText" role="status" aria-live="polite">Using the last locally verified version until official sources are checked.</p><p class="loader-advice-meta" id="loaderAdviceMeta"></p><div class="loader-advice-sources" id="loaderAdviceSources"></div><p class="field-help">Choose the recommended stable version in the official installer, then select the managed <strong>BloonsTD6.exe</strong>. BananaForge will not install a nightly automatically.</p></section><button class="primary" id="setupStart">Install selected packages</button><button class="secondary" id="setupCancel" hidden>Cancel setup</button><button class="secondary" id="setupOpenMelon" hidden>Open MelonLoader installer</button><button class="text-button" id="setupSkip">Continue to library</button><p class="setup-feedback" id="setupFeedback" role="status"></p><div id="setupJobs" aria-live="polite"></div></aside></div>
         </section>
 
         <section class="page" id="page-downloads">
           <header class="page-header compact">
-            <div><span class="eyebrow">CHROMIUM DOWNLOADS</span><h1>Downloads</h1><p>Files downloaded in any browser tab appear here with their progress and source.</p></div>
+            <div><span class="eyebrow">DOWNLOADS</span><h1>Downloads</h1><p>Track packages and browser downloads. Install completed DLLs into your active profile.</p></div>
             <button class="secondary" id="openDownloadsFolder">Open downloads folder</button>
           </header>
           <div id="downloadsList" class="downloads-list list-empty">No downloads yet. Use the Mod Browser to find one.</div>
@@ -134,21 +158,33 @@
             <article class="settings-card">
               <h3>Game & instance</h3>
               <p>Use a managed copy when possible so your original installation stays clean.</p>
-              <label>Original BTD6 executable</label>
+              <label for="gamePath">Original BTD6 executable</label>
               <div class="field-row"><input id="gamePath" placeholder="C:\...\BloonsTD6.exe"><button id="chooseGame">Browse</button></div>
-              <label>Managed BTD6 folder</label>
+              <label for="instancePath">Managed BTD6 folder</label>
               <div class="field-row"><input id="instancePath" placeholder="C:\...\BananaForge\Instances\Main"><button id="chooseInstance">Browse</button></div>
-              <label>Launch arguments</label>
+              <label for="launchArguments">Launch arguments</label>
               <input id="launchArguments" placeholder="Optional command-line arguments">
             </article>
             <article class="settings-card">
               <h3>MelonLoader & downloads</h3>
-              <p>Downloads are automatic and stay inside your local BananaForge folder.</p>
-              <label>MelonLoader installer</label>
+              <p>Choose where downloaded files are stored and manage your official installer.</p>
+              <label for="melonLoaderPath">MelonLoader installer</label>
               <div class="field-row"><input id="melonLoaderPath" placeholder="C:\...\MelonLoader.Installer.exe"><button id="chooseMelon">Browse</button></div>
               <div class="inline-actions"><button class="secondary" id="findMelon">Download official installer</button><button class="secondary" id="runMelonSettings">Run installer</button></div>
-              <label>Browser downloads</label>
-              <div class="fixed-path">AppData\Local\BananaForge\downloads · no folder selection needed</div>
+              <label for="downloadPath">Download folder</label><div class="field-row"><input id="downloadPath"><button id="chooseDownloadPath">Browse</button></div>
+            </article>
+            <article class="settings-card update-settings-card">
+              <h3>Mod updates</h3>
+              <p>Check for updates when BananaForge starts and every six hours while it is open. You can also check before launch. Changes wait to sync into BTD6 until it closes.</p>
+              <label class="setting-toggle" for="autoUpdateMods"><input type="checkbox" id="autoUpdateMods"><span><strong>Automatically update mods</strong><small>Known projects are tracked automatically. For other DLLs, open the profile and choose Track updates to connect the author’s GitHub release.</small></span></label>
+              <div class="update-setting-actions"><button class="secondary" id="checkModUpdates">Check active profile now</button><span id="autoUpdateStatus" role="status" aria-live="polite" aria-atomic="true">Automatic updates are off.</span></div>
+            </article>
+            <article class="settings-card update-settings-card platform-updates-card">
+              <div class="update-card-heading"><div><h3>BananaForge &amp; BTD6</h3><p>BananaForge checks GitHub Releases at startup and every six hours. New versions are verified before installation.</p></div><span class="update-indicator" aria-hidden="true">↻</span></div>
+              <label class="setting-toggle" for="autoUpdateApp"><input type="checkbox" id="autoUpdateApp"><span><strong>Automatically install BananaForge updates</strong><small>When enabled, verified releases install and relaunch automatically. Turn this off to review updates and install them yourself.</small></span></label>
+              <div class="update-setting-actions app-update-actions"><button class="rainbow-update-button" id="checkAppUpdate"><span aria-hidden="true">✦</span> Check for updates</button><span id="appUpdateStatus" role="status" aria-live="polite" aria-atomic="true">Ready to check the latest GitHub release.</span></div>
+              <label class="setting-toggle" for="autoUpdateGame"><input type="checkbox" id="autoUpdateGame"><span><strong>Keep managed BTD6 in sync with Steam</strong><small>Steam downloads the game update. BananaForge copies changed Steam files into the managed copy only, after BTD6 closes; it never writes to the Steam game folder.</small></span></label>
+              <div class="update-setting-actions"><button class="secondary" id="checkGameUpdate">Sync Steam game files now</button><span id="gameUpdateStatus" role="status" aria-live="polite" aria-atomic="true">Waiting for a Steam game build check.</span></div>
             </article>
           </div>
           <div class="legal-card"><strong>Unofficial software</strong><p>BananaForge is not affiliated with Ninja Kiwi, Valve, MelonLoader, or mod authors. Do not use gameplay-changing mods in public multiplayer or competitive modes.</p></div>
@@ -156,21 +192,37 @@
       </main>
     </div>
 
-    <div class="toast" id="toast"></div>
-    <div class="modal-backdrop" id="profileModal" hidden>
-      <div class="modal"><span class="eyebrow">NEW PROFILE</span><h2>Create a mod profile</h2><p>Give this collection a clear name.</p><input id="profileName" maxlength="60" placeholder="For example: Boss events"><div class="actions"><button class="secondary" id="cancelProfile">Cancel</button><button class="primary" id="confirmProfile">Create profile</button></div></div>
-    </div>
-    <div class="modal-backdrop" id="firstRunModal" hidden>
-      <div class="modal setup-modal">
-        <span class="eyebrow">FIRST-RUN SETUP</span>
-        <h2>Set up BananaForge</h2>
-        <p>These steps happen after installation so the Windows installer stays simple and safe.</p>
-        <div class="setup-step"><b>1</b><div><strong>Find BTD6</strong><small id="setupGameStatus">Checking Steam locations…</small></div><button class="secondary" id="setupChooseGame">Choose</button></div>
-        <div class="setup-step"><b>2</b><div><strong>Create managed copy</strong><small>Keep original BTD6 separate from mods.</small></div><button class="secondary" id="setupCreateCopy">Create</button></div>
-        <div class="setup-step"><b>3</b><div><strong>Get MelonLoader</strong><small>Downloads the latest official installer directly.</small></div><button class="secondary" id="setupDownloadMelon">Download</button></div>
-        <div class="actions"><button class="primary" id="setupFinish">Finish setup</button></div>
-      </div>
-    </div>
+    <dialog class="update-source-dialog" id="modSourceDialog" aria-labelledby="modSourceTitle">
+      <form id="modSourceForm">
+        <span class="eyebrow">AUTOMATIC UPDATES</span>
+        <h2 id="modSourceTitle">Find the real update source</h2>
+        <p id="modSourceDescription">Search the GitHub projects used by BTD Mod Helper. BananaForge checks each project’s declared DLL and latest release before showing a source.</p>
+        <label for="modSourceSearchName">Mod or repository name</label>
+        <input id="modSourceSearchName" type="search" autocomplete="off" placeholder="For example, Ultimate Crosspathing">
+        <button class="secondary source-search-button" id="searchModSources" type="button">Search BTD Mod Helper sources</button>
+        <p class="source-search-status" id="sourceSearchStatus" role="status" aria-live="polite"></p>
+        <div class="source-search-results" id="sourceSearchResults"></div>
+        <details class="source-manual-entry"><summary>Have the author’s GitHub URL?</summary>
+        <label for="modSourceUrl">GitHub project or release URL</label>
+        <input id="modSourceUrl" type="url" placeholder="https://github.com/owner/repo">
+        <button class="primary" id="saveModSource" type="submit">Verify and track</button></details>
+        <div class="dialog-actions"><button class="secondary" id="cancelModSource" type="button">Cancel</button></div>
+      </form>
+    </dialog>
+    <dialog class="update-source-dialog" id="installLinkDialog" aria-labelledby="installLinkTitle">
+      <form id="installLinkForm">
+        <span class="eyebrow">INSTALL A MOD</span>
+        <h2 id="installLinkTitle">Install from GitHub</h2>
+        <p>Paste a GitHub project, folder, release asset, or direct DLL link. BananaForge will inspect the link and install the DLL into your active profile.</p>
+        <label for="installLinkUrl">GitHub mod link</label>
+        <input id="installLinkUrl" type="url" required autocomplete="url" placeholder="https://github.com/owner/repo/tree/main/ModFolder">
+        <p id="installLinkStatus" class="source-search-status" role="status" aria-live="polite"></p>
+        <div class="dialog-actions"><button class="secondary" id="cancelInstallLink" type="button">Cancel</button><button class="primary" id="confirmInstallLink" type="submit">Find and install DLL</button></div>
+      </form>
+    </dialog>
+    <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+    <script src="../node_modules/gsap/dist/gsap.min.js"></script>
     <script src="app.js"></script>
+    <script src="workspace-ui.js"></script>
   </body>
 </html>

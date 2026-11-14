@@ -1,0 +1,57 @@
+name: Build BananaForge desktop installer
+
+on:
+  push:
+    tags: ['desktop-v*']
+
+permissions:
+  contents: write
+
+jobs:
+  windows-installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci
+      - name: Validate release version
+        shell: pwsh
+        run: |
+          $version = '${{ github.ref_name }}' -replace '^desktop-v', ''
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid desktop release tag: ${{ github.ref_name }}" }
+          $packageVersion = (Get-Content desktop/package.json -Raw | ConvertFrom-Json).version
+          if ($version -ne $packageVersion) { throw "Release tag $version does not match desktop/package.json version $packageVersion." }
+      - name: Check desktop JavaScript
+        working-directory: desktop
+        run: npm run check
+      - name: Build Electron application
+        working-directory: desktop
+        run: npm run pack
+      - name: Install Inno Setup
+        run: choco install innosetup --yes --no-progress
+      - name: Build installer and checksum
+        shell: pwsh
+        run: |
+          $version = '${{ github.ref_name }}' -replace '^desktop-v', ''
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid desktop release tag: ${{ github.ref_name }}" }
+          $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          & $compiler "/DAppVersion=$version" installer/BananaForgeWorkspace.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compilation failed.' }
+          $installer = "desktop/dist/BananaForge-Setup-$version.exe"
+          $hash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          [IO.File]::WriteAllText("$installer.sha256", "$hash  BananaForge-Setup-$version.exe`n")
+      - name: Publish desktop release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: BananaForge Desktop ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: |
+            desktop/dist/BananaForge-Setup-*.exe
+            desktop/dist/BananaForge-Setup-*.exe.sha256

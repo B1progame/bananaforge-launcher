@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Create BananaForge profile</title>
+    <link rel="stylesheet" href="profile-dialog.css" />
+  </head>
+  <body>
+    <main class="dialog-card">
+      <span class="eyebrow">NEW PROFILE</span>
+      <h1>Create a mod profile</h1>
+      <p>A separate collection of mods for your next run.</p>
+      <label for="profileName">Profile name</label>
+      <input id="profileName" maxlength="60" placeholder="For example: Boss events" autofocus />
+      <label for="profileDescription">Description <span>(optional)</span></label><textarea id="profileDescription" maxlength="240" rows="2" placeholder="What is this collection for?"></textarea>
+      <label for="profileAccent">Profile color</label><select id="profileAccent"><option value="amber">Amber</option><option value="mint">Mint</option><option value="blue">Blue</option><option value="violet">Violet</option><option value="rose">Rose</option></select>
+      <p class="error" id="error" role="alert" hidden></p>
+      <div class="actions">
+        <button class="secondary" id="cancel">Cancel</button>
+        <button class="primary" id="create">Create profile</button>
+      </div>
+    </main>
+    <script src="profile-dialog.js"></script>
+  </body>
+</html>
