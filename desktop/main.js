@@ -1237,7 +1237,7 @@ async function checkProfileModUpdates(profileId = state.activeProfileId, { force
         if (result.upToDate) {
           source.version = result.version || source.version || '';
           if (result.sha256) source.sha256 = result.sha256;
-          if (result.upstreamBlobSha) source.upstreamBlobSha = result.upstreamBlobSha;
+          if (result.upstreamSha256) source.upstreamSha256 = result.upstreamSha256;
           source.versionVerified = true;
           source.status = 'current'; entry.status = 'current'; job.checked += 1;
         } else {
@@ -1248,7 +1248,7 @@ async function checkProfileModUpdates(profileId = state.activeProfileId, { force
             await fs.promises.rename(staged, file);
           } finally { await fs.promises.rm(staged, { force: true }); }
           source.url = result.url; source.version = result.version; source.sha256 = result.sha256; source.versionVerified = true; source.status = 'updated';
-          if (result.upstreamBlobSha) source.upstreamBlobSha = result.upstreamBlobSha;
+          if (result.upstreamSha256) source.upstreamSha256 = result.upstreamSha256;
           state.downloads.unshift({ id: crypto.randomUUID(), ...result, received: fs.statSync(file).size, total: fs.statSync(file).size, state: 'completed', startedAt: new Date().toISOString(), updateFor: profileId });
           entry.status = 'updated'; entry.version = result.version; job.updated += 1;
           send('downloads:changed', state.downloads);
@@ -2078,7 +2078,7 @@ handle('mods:track-discovered-update', async (_event, profileId, name, repositor
   const verifiedAsset = typeof assetName === 'string' && path.basename(assetName) === assetName && /\.dll$/i.test(assetName) ? assetName : safeName;
   if (sourceType === 'github-branch-file') {
     const asset = await workspace.resolveGitHubBranchModAsset({ repository, branch, repoPath: sourcePath }, verifiedAsset, AbortSignal.timeout(30000));
-    await workspace.verifyGitHubBranchModAsset(asset, AbortSignal.timeout(30000));
+    const checkedAsset = await workspace.verifyGitHubBranchModAsset(asset, AbortSignal.timeout(30000));
     const bytes = await fs.promises.readFile(path.join(profileRoot(profileId), safeName));
     if (bytes.subarray(0, 2).toString() !== 'MZ') throw new Error('The installed file is not a valid Windows DLL.');
     profile.updateSources ||= {};
@@ -2087,7 +2087,7 @@ handle('mods:track-discovered-update', async (_event, profileId, name, repositor
     profile.lastAutoUpdateAt = null;
     writeProfileManifest(profileId); saveState();
     if (profileId === state.activeProfileId && state.settings.autoUpdateMods) scheduleAutoUpdate(profileId);
-    return { file: safeName, repository, version: `${asset.branch} · ${asset.blobSha.slice(0, 7)}` };
+    return { file: safeName, repository, version: checkedAsset.version };
   }
   const release = await workspace.latestReleaseAsset(repository, verifiedAsset, AbortSignal.timeout(30000));
   const bytes = await fs.promises.readFile(path.join(profileRoot(profileId), safeName));
@@ -2111,7 +2111,7 @@ handle('mods:track-update', async (_event, profileId, name, releaseUrl) => {
   const branchSource = workspace.githubBranchModSourceReference(releaseUrl, safeName);
   if (branchSource) {
     const asset = await workspace.resolveGitHubBranchModAsset(branchSource, safeName, AbortSignal.timeout(30000));
-    await workspace.verifyGitHubBranchModAsset(asset, AbortSignal.timeout(30000));
+    const checkedAsset = await workspace.verifyGitHubBranchModAsset(asset, AbortSignal.timeout(30000));
     const file = path.join(profileRoot(profileId), safeName);
     const bytes = fs.readFileSync(file);
     if (bytes.subarray(0, 2).toString() !== 'MZ') throw new Error('The installed file is not a valid Windows DLL.');
@@ -2121,7 +2121,7 @@ handle('mods:track-update', async (_event, profileId, name, releaseUrl) => {
     profile.lastAutoUpdateAt = null;
     writeProfileManifest(profileId); saveState();
     if (profileId === state.activeProfileId && state.settings.autoUpdateMods) scheduleAutoUpdate(profileId);
-    return { file: safeName, repository: asset.repository, version: `${asset.branch} · ${asset.blobSha.slice(0, 7)}` };
+    return { file: safeName, repository: asset.repository, version: checkedAsset.version };
   }
   const release = workspace.githubModSourceReference(releaseUrl, safeName);
   if (!release) throw new Error('Paste a GitHub project, mod folder, release page, or direct tagged release URL.');

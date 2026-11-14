@@ -298,39 +298,17 @@ function githubBranchModSourceReference(value, expectedAsset) {
   return { repository: `${owner}/${repo}`, branch, repoPath, asset: expectedAsset };
 }
 
-async function githubContentsJson(repository, repoPath, branch, signal) {
-  const encodedPath = repoPath ? `/${repoPath.split('/').map(encodeURIComponent).join('/')}` : '';
-  const url = new URL(`https://api.github.com/repos/${repository}/contents${encodedPath}`);
-  url.searchParams.set('ref', branch);
-  const response = await fetch(url, {
-    headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'BananaForge/0.3.33' },
-    signal: AbortSignal.any([signal, AbortSignal.timeout(25000)])
-  });
-  if (!response.ok) throw githubResponseError(response, `checking ${repository}'s ${branch} source`);
-  return response.json();
-}
-
 async function resolveGitHubBranchModAsset(reference, expectedName, signal) {
   if (!reference || !/^[\w.-]{1,100}\/[\w.-]{1,100}$/.test(reference.repository) || !/^[\w.-]{1,100}$/.test(reference.branch)) throw new Error('The GitHub branch source is invalid.');
   const requestedPath = String(reference.repoPath || '');
   if (requestedPath.split('/').some((part) => part === '.' || part === '..' || part.includes('\\') || /[\u0000-\u001f]/.test(part))) throw new Error('The GitHub source path is invalid.');
-  const data = await githubContentsJson(reference.repository, requestedPath, reference.branch, signal);
-  let item;
-  if (Array.isArray(data)) {
-    item = data.find((entry) => entry.type === 'file' && entry.name.toLowerCase() === expectedName.toLowerCase());
-    if (!item) throw new Error(`The ${requestedPath || 'repository'} folder has no ${expectedName} file.`);
-  } else if (data?.type === 'file') {
-    item = data;
-  } else {
-    throw new Error('GitHub did not return a file or folder for that source URL.');
-  }
-  if (item.name.toLowerCase() !== expectedName.toLowerCase() || item.type !== 'file' || !/^[a-f0-9]{40}$/i.test(item.sha || '') || !Number.isFinite(Number(item.size)) || Number(item.size) < 2 || Number(item.size) > 256 * 1024 * 1024) {
-    throw new Error(`The GitHub source does not contain a valid ${expectedName} DLL.`);
-  }
-  const downloadUrl = new URL(item.download_url || '');
-  if (downloadUrl.protocol !== 'https:' || downloadUrl.hostname.toLowerCase() !== 'raw.githubusercontent.com') throw new Error('GitHub returned an unexpected branch-file download URL.');
-  return { repository: reference.repository, branch: reference.branch, asset: expectedName, repoPath: item.path, blobSha: item.sha, size: Number(item.size), downloadUrl: downloadUrl.href,
-    url: `https://github.com/${reference.repository}/blob/${encodeURIComponent(reference.branch)}/${item.path.split('/').map(encodeURIComponent).join('/')}` };
+  if (path.basename(expectedName) !== expectedName || !/\.dll$/i.test(expectedName)) throw new Error('The branch source must identify a DLL file.');
+  const repoPath = /\.dll$/i.test(path.posix.basename(requestedPath)) ? requestedPath : [requestedPath, expectedName].filter(Boolean).join('/');
+  if (path.posix.basename(repoPath).toLowerCase() !== expectedName.toLowerCase()) throw new Error(`The selected branch path must contain ${expectedName}.`);
+  const encodedPath = repoPath.split('/').map(encodeURIComponent).join('/');
+  const downloadUrl = `https://raw.githubusercontent.com/${reference.repository}/${encodeURIComponent(reference.branch)}/${encodedPath}`;
+  return { repository: reference.repository, branch: reference.branch, asset: expectedName, repoPath, downloadUrl,
+    url: `https://github.com/${reference.repository}/blob/${encodeURIComponent(reference.branch)}/${encodedPath}` };
 }
 
 async function findGitHubBranchModAsset(reference, names, signal) {
@@ -356,22 +334,29 @@ async function findGitHubBranchModAsset(reference, names, signal) {
 
 async function verifyGitHubBranchModAsset(asset, signal) {
   const response = await fetch(asset.downloadUrl, {
-    headers: { Range: 'bytes=0-1', 'User-Agent': 'BananaForge/0.3.33' },
+    headers: { 'User-Agent': 'BananaForge/0.3.36' },
     signal: AbortSignal.any([signal, AbortSignal.timeout(30000)])
   });
   const finalUrl = new URL(response.url);
   if (!response.ok || finalUrl.protocol !== 'https:' || finalUrl.hostname.toLowerCase() !== 'raw.githubusercontent.com' || !response.body) throw new Error(`Could not verify ${asset.asset} from the GitHub branch (HTTP ${response.status}).`);
   const reader = response.body.getReader();
   let prefix = Buffer.alloc(0);
+  let size = 0;
+  const hash = crypto.createHash('sha256');
   try {
-    while (prefix.length < 2) {
+    while (true) {
       const { value, done } = await reader.read();
       if (done) break;
-      prefix = Buffer.concat([prefix, Buffer.from(value)]);
+      const chunk = Buffer.from(value);
+      size += chunk.length;
+      if (size > 256 * 1024 * 1024) throw new Error(`The branch file ${asset.repoPath} exceeds the 256 MB limit.`);
+      hash.update(chunk);
+      if (prefix.length < 2) prefix = Buffer.concat([prefix, chunk.subarray(0, 2 - prefix.length)]);
     }
   } finally { await reader.cancel().catch(() => {}); }
   if (prefix.subarray(0, 2).toString('ascii') !== 'MZ') throw new Error(`The branch file ${asset.repoPath} is not a Windows DLL.`);
-  return asset;
+  const digest = hash.digest('hex');
+  return { ...asset, size, contentSha256: digest, version: `${asset.branch} · ${digest.slice(0, 7)}` };
 }
 
 async function findBtdModHelperCatalogAsset(searchTerm, expectedName, signal) {
@@ -386,10 +371,10 @@ async function findBtdModHelperCatalogAsset(searchTerm, expectedName, signal) {
   if (!match) return null;
   const source = githubBranchModSourceReference(`https://github.com/${repository}/tree/${branch}/${encodeURIComponent(match)}`, expectedName);
   const asset = await resolveGitHubBranchModAsset(source, expectedName, signal);
-  await verifyGitHubBranchModAsset(asset, signal);
+  const verified = await verifyGitHubBranchModAsset(asset, signal);
   return { repository, title: `${repository} · ${match}`, description: 'Listed in the BTD Mod Helper project catalog. The branch DLL was verified before it was offered.',
     source: 'BTD Mod Helper catalog', sourceType: 'github-branch-file', branch, sourcePath: asset.repoPath, url: asset.url,
-    version: `${branch} · ${asset.blobSha.slice(0, 7)}`, asset: asset.asset, downloadUrl: asset.downloadUrl, verified: true };
+    version: verified.version, asset: asset.asset, downloadUrl: asset.downloadUrl, verified: true };
 }
 
 async function downloadGitHubBranchModAsset(asset, root, signal, onProgress = () => {}) {
@@ -401,22 +386,20 @@ async function downloadGitHubBranchModAsset(asset, root, signal, onProgress = ()
   const temporary = `${destination}.part`;
   const handle = await fs.promises.open(temporary, 'wx');
   const hash = crypto.createHash('sha256');
-  const gitBlobHash = crypto.createHash('sha1').update(`blob ${asset.size}\0`);
   let received = 0, lastUpdate = 0;
-  const total = Number(response.headers.get('content-length')) || asset.size;
+  const total = Number(response.headers.get('content-length')) || asset.size || 0;
   try {
     for await (const chunk of response.body) {
       signal.throwIfAborted();
       received += chunk.length;
       if (received > 256 * 1024 * 1024) throw new Error('The GitHub branch DLL exceeds the 256 MB limit.');
-      hash.update(chunk); gitBlobHash.update(chunk);
+      hash.update(chunk);
       let offset = 0;
       while (offset < chunk.length) { const result = await handle.write(chunk, offset, chunk.length - offset); offset += result.bytesWritten; }
       if (Date.now() - lastUpdate > 100) { onProgress({ received, total }); lastUpdate = Date.now(); }
     }
     await handle.close();
     const digest = hash.digest('hex');
-    if (received !== asset.size || gitBlobHash.digest('hex') !== asset.blobSha) throw new Error('The GitHub branch file changed while downloading; the mod was not installed. Check again.');
     const file = await fs.promises.open(temporary, 'r');
     const magic = Buffer.alloc(2);
     try { await file.read(magic, 0, 2, 0); } finally { await file.close(); }
@@ -424,8 +407,8 @@ async function downloadGitHubBranchModAsset(asset, root, signal, onProgress = ()
     signal.throwIfAborted();
     await fs.promises.rename(temporary, destination);
     onProgress({ received, total: received });
-    return { path: destination, name: asset.asset, version: `${asset.branch} · ${asset.blobSha.slice(0, 7)}`, sha256: digest, url: asset.url,
-      repository: asset.repository, sourceType: 'github-branch-file', branch: asset.branch, sourcePath: asset.repoPath, upstreamBlobSha: asset.blobSha };
+    return { path: destination, name: asset.asset, version: `${asset.branch} · ${digest.slice(0, 7)}`, sha256: digest, url: asset.url,
+      repository: asset.repository, sourceType: 'github-branch-file', branch: asset.branch, sourcePath: asset.repoPath, upstreamSha256: digest };
   } finally { await handle.close().catch(() => {}); await fs.promises.rm(temporary, { force: true }); }
 }
 
@@ -626,10 +609,10 @@ async function searchModUpdateSources(name, signal, searchTerm = '') {
             const branchSource = githubBranchModSourceReference(`https://github.com/${item.full_name}/tree/${encodeURIComponent(branch)}`, name);
             const branchAsset = await findGitHubBranchModAsset(branchSource, [name, declaredDll], timeoutSignal(20000));
             if (!branchAsset) throw releaseError;
-            await verifyGitHubBranchModAsset(branchAsset, timeoutSignal(20000));
+            const checkedAsset = await verifyGitHubBranchModAsset(branchAsset, timeoutSignal(20000));
             return { repository: item.full_name, title: `${item.full_name} · ${branchAsset.repoPath}`, description: item.description || 'Verified DLL found in the repository branch.',
               source: 'GitHub branch', sourceType: 'github-branch-file', branch: branchAsset.branch, sourcePath: branchAsset.repoPath, url: branchAsset.url,
-              version: `${branchAsset.branch} · ${branchAsset.blobSha.slice(0, 7)}`, asset: branchAsset.asset, downloadUrl: branchAsset.downloadUrl, verified: true };
+              version: checkedAsset.version, asset: branchAsset.asset, downloadUrl: branchAsset.downloadUrl, verified: true };
           }
         } catch (error) { releaseErrors.push(`${item.full_name}: ${error.message || error}`); return null; }
       }));
@@ -905,13 +888,10 @@ async function updateTrackedMod(source, root, signal, onProgress = () => {}, rel
   if (source?.sourceType === 'github-branch-file') {
     const reference = { repository: source.repository, branch: source.branch, repoPath: source.sourcePath || '' };
     const asset = await resolveGitHubBranchModAsset(reference, source.asset, signal);
-    if (source.versionVerified === true && source.upstreamBlobSha === asset.blobSha) {
-      return { upToDate: true, version: `${asset.branch} · ${asset.blobSha.slice(0, 7)}`, sha256: source.sha256, upstreamBlobSha: asset.blobSha };
-    }
     const result = await downloadGitHubBranchModAsset(asset, root, signal, onProgress);
     if (source.sha256 && result.sha256 === source.sha256) {
       await fs.promises.rm(result.path, { force: true });
-      return { upToDate: true, version: result.version, sha256: result.sha256, upstreamBlobSha: result.upstreamBlobSha };
+      return { upToDate: true, version: result.version, sha256: result.sha256, upstreamSha256: result.upstreamSha256 };
     }
     return result;
   }
