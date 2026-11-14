@@ -1,12 +1,55 @@
+# Python caches and local environments
 __pycache__/
 *.py[cod]
+*$py.class
 .venv/
+venv/
+ENV/
 .build-venv/
-build/
-dist/
-*.spec
-desktop/node_modules/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+pip-wheel-metadata/
+
+# Build output
+/build/
+/dist/
+/BananaForge*.spec
 desktop/dist/
 desktop/dist-*/
-desktop/*.log
+node_modules/
+**/bin/
+**/obj/
+.vs/
+TestResults/
+*.user
+*.suo
+
+# Local diagnostics and generated analysis
+*.log
 desktop/.qa-runs/
+/graphify-out/
+
+# Keep versioned release notes in docs/releases, not the repository root
+/RELEASE-*.md
+
+# Local secrets and environment settings
+.env
+.env.*
+!.env.example
+
+# Editor and operating-system files
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+*.tmp
+*.bak

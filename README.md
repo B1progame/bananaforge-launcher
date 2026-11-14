@@ -83,6 +83,7 @@ To build the packaged app and Windows installer from the repository root:
 - [Profiles and mods](docs/profiles.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Development and releases](docs/development.md)
+- [Archived release notes](docs/releases/README.md)
 - [Security policy](SECURITY.md)
 - [Contributing](CONTRIBUTING.md)
 
