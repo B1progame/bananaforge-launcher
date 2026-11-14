@@ -10,7 +10,7 @@
   <rect width="1440" height="640" rx="28" fill="url(#bg)"/>
   <circle cx="1270" cy="96" r="185" fill="#9b75ff" opacity=".06"/><circle cx="130" cy="580" r="220" fill="#57c9b3" opacity=".05"/>
   <text x="72" y="75" fill="#f5f3f9" font-family="Segoe UI,Arial,sans-serif" font-size="30" font-weight="700">Updates you can trust</text>
-  <text x="72" y="111" fill="#aeb4c6" font-family="Segoe UI,Arial,sans-serif" font-size="17">One signed-off release path, with automatic or user-controlled installs.</text>
+  <text x="72" y="111" fill="#aeb4c6" font-family="Segoe UI,Arial,sans-serif" font-size="17">One checksum-verified release path, with automatic or user-controlled installs.</text>
   <g filter="url(#shadow)" font-family="Segoe UI,Arial,sans-serif">
     <rect x="72" y="170" width="260" height="150" rx="18" fill="#242633" stroke="#414455"/>
     <circle cx="108" cy="208" r="17" fill="#59462a"/><text x="108" y="214" text-anchor="middle" fill="#ffd27d" font-size="16" font-weight="700">1</text>
