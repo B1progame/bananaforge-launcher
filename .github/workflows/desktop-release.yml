@@ -21,12 +21,14 @@ jobs:
         working-directory: desktop
         run: npm ci
       - name: Validate release version
+        id: validate-release
         shell: pwsh
         run: |
           $version = '${{ github.ref_name }}' -replace '^desktop-v', ''
           if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid desktop release tag: ${{ github.ref_name }}" }
           $packageVersion = (Get-Content desktop/package.json -Raw | ConvertFrom-Json).version
           if ($version -ne $packageVersion) { throw "Release tag $version does not match desktop/package.json version $packageVersion." }
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "version=$version"
       - name: Check desktop JavaScript
         working-directory: desktop
         run: npm run check
@@ -49,7 +51,7 @@ jobs:
       - name: Publish desktop release
         uses: softprops/action-gh-release@v3
         with:
-          name: BananaForge Desktop ${{ github.ref_name }}
+          name: BananaForge Desktop ${{ steps.validate-release.outputs.version }}
           draft: false
           prerelease: false
           files: |
