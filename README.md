@@ -50,7 +50,7 @@ With automatic installation disabled, use **Settings → BananaForge & BTD6 → 
 
 <p align="center"><img src="docs/images/desktop-updates.svg" alt="BananaForge GitHub release and self-update flow" width="100%"></p>
 
-To publish a desktop release, update the version in `desktop/package.json` and `desktop/package-lock.json`, commit the change, then push a matching tag such as `desktop-v0.3.29`. The `desktop-release` GitHub Actions workflow verifies the tag/version match, builds the app and installer, creates the checksum, and publishes both installer assets to GitHub Releases.
+To publish a desktop release, update the version in `desktop/package.json` and `desktop/package-lock.json`, commit the change, then push a matching `desktop-vX.Y.Z` tag. The `desktop-release` GitHub Actions workflow verifies the tag/version match, builds the app and installer, creates the checksum, and publishes both installer assets to GitHub Releases.
 
 ## Build from source
 

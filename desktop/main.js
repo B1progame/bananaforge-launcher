@@ -1930,12 +1930,37 @@ handle('mods:install-link', async (_event, url, profileId = state.activeProfileI
     if (answer.response !== 1) return { cancelled: true };
   }
   fs.mkdirSync(downloadRoot(), { recursive: true });
-  const stagedDownload = path.join(downloadRoot(), `.bananaforge-link-${crypto.randomUUID()}.dll`);
+  const stageDirectory = path.join(downloadRoot(), `.bananaforge-link-${crypto.randomUUID()}`);
+  const stagedDownload = path.join(stageDirectory, resolved.name);
   try {
+    fs.mkdirSync(stageDirectory, { recursive: false });
     fs.writeFileSync(stagedDownload, resolved.bytes, { flag: 'wx' });
-    const mods = installModFile(stagedDownload, profileId);
-    return { mods, name: resolved.name, source: resolved.source };
-  } finally { try { fs.rmSync(stagedDownload, { force: true }); } catch {} }
+    installModFile(stagedDownload, profileId);
+
+    // Earlier builds accidentally installed their randomized staging filename.
+    // Remove only those generated aliases whose contents exactly match this DLL.
+    const digest = crypto.createHash('sha256').update(resolved.bytes).digest('hex');
+    const profile = profileById(profileId);
+    const staleAliases = profileMods(profileId).filter((name) =>
+      /^\.bananaforge-link-[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}\.dll$/i.test(name)
+    );
+    let cleaned = false;
+    for (const alias of staleAliases) {
+      const aliasPath = path.join(profileRoot(profileId), alias);
+      const aliasDigest = crypto.createHash('sha256').update(fs.readFileSync(aliasPath)).digest('hex');
+      if (aliasDigest !== digest) continue;
+      fs.rmSync(aliasPath, { force: true });
+      profile.disabledMods = (profile.disabledMods || []).filter((item) => item !== alias);
+      if (profile.updateSources) delete profile.updateSources[alias];
+      cleaned = true;
+    }
+    if (cleaned) {
+      writeProfileManifest(profileId);
+      if (profileId === state.activeProfileId) syncActiveProfile();
+      saveState();
+    }
+    return { mods: profileMods(profileId), name: resolved.name, source: resolved.source };
+  } finally { try { fs.rmSync(stageDirectory, { recursive: true, force: true }); } catch {} }
 });
 
 handle("mods:list", () => {
