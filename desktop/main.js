@@ -746,6 +746,7 @@ async function launchVerifiedBananaForgeUpdate(file, version) {
   const psQuote = (value) => `'${String(value).replace(/'/g, "''")}'`;
   const setupPath = path.resolve(file);
   const progressScript = path.join(__dirname, 'update-progress.ps1');
+  const scriptPath = path.join(app.getPath('temp'), `BananaForge-update-${process.pid}-${crypto.randomUUID()}.ps1`);
   const script = await fs.promises.readFile(progressScript, 'utf8');
   const command = [
     `$script:SetupPath=${psQuote(setupPath)}`,
@@ -755,16 +756,25 @@ async function launchVerifiedBananaForgeUpdate(file, version) {
     "$script:InstallArguments='/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /AUTOMATICUPDATE'",
     script
   ].join(';\n');
-  const runner = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-STA', '-WindowStyle', 'Hidden', '-EncodedCommand', Buffer.from(command, 'utf16le').toString('base64')], { detached: true, windowsHide: true, stdio: 'ignore' });
-  await new Promise((resolve, reject) => {
-    runner.once('spawn', resolve);
-    runner.once('error', reject);
-  });
+  const scriptBytes = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(command, 'utf8')]);
+  await fs.promises.writeFile(scriptPath, scriptBytes, { flag: 'wx' });
+  let runner;
+  try {
+    runner = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-STA', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass', '-File', scriptPath], { detached: true, windowsHide: true, stdio: 'ignore' });
+    await new Promise((resolve, reject) => {
+      runner.once('spawn', resolve);
+      runner.once('error', reject);
+    });
+  } catch (error) {
+    await fs.promises.rm(scriptPath, { force: true }).catch(() => {});
+    throw error;
+  }
   runner.unref();
   updateEvent({ status: 'installing', version, message: `BananaForge ${version} is ready. Restarting to install the update…` });
   launcherLog(`Launching verified BananaForge ${version} installer.`);
   setTimeout(() => {
     if (runner.exitCode !== null) {
+      fs.promises.rm(scriptPath, { force: true }).catch(() => {});
       const message = `The update progress window exited before installation started (PowerShell exit code ${runner.exitCode}). BananaForge stayed open.`;
       launcherLog(message);
       updateEvent({ status: 'failed', version, message });

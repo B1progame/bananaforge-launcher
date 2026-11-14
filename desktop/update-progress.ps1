@@ -223,4 +223,5 @@ $script:Window.Show()
 $script:Window.Activate() | Out-Null
 Start-ProgressSweep
 $script:ProgressTimer.Start()
-[System.Windows.Threading.Dispatcher]::Run()
+try { [System.Windows.Threading.Dispatcher]::Run() }
+finally { Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue }
