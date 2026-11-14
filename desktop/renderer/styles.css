@@ -46,6 +46,48 @@ body.app-ready #app { visibility:visible; }
 .boot-footer { display:flex; align-items:center; gap:5px; margin-top:26px; color:#777a82; font-size:8px; font-weight:650; letter-spacing:.12em; }
 .boot-footer i { width:2px; height:2px; margin:0 5px 0; }
 @media(max-width:560px) { .boot-content { width:min(420px,calc(100vw - 40px)); } .boot-emblem { margin-bottom:26px; } .boot-brand-row { align-items:flex-start; flex-direction:column; gap:5px; } }
+.boot-screen { background:#17191b; }
+.boot-screen::before { background:radial-gradient(ellipse at 77% 47%,#d5a44314 0,transparent 37%),radial-gradient(ellipse at 15% 85%,#54ad9610 0,transparent 34%),linear-gradient(145deg,#1b1d20,#151719 76%); }
+.boot-layout { display:grid; grid-template-columns:minmax(340px,440px) minmax(420px,600px); align-items:center; gap:clamp(28px,5vw,76px); width:min(1160px,calc(100vw - 80px)); margin:auto; }
+.boot-content { width:100%; padding:24px 0 22px; }
+.boot-emblem { margin-bottom:28px; }
+.boot-scene { position:relative; width:100%; align-self:center; filter:drop-shadow(0 24px 48px #0005); }
+.boot-motion-art { display:block; width:100%; overflow:visible; }
+.boot-scene-halo { fill:#f0b84d; opacity:.12; filter:url(#boot-soft-glow); }
+.boot-scene-ring { fill:none; stroke:#f1c56a; stroke-width:1; opacity:.12; }
+.boot-scene-ring-a { stroke-dasharray:2 10; }
+.boot-scene-ring-b { stroke-dasharray:1 14; opacity:.09; }
+.boot-track-shadow { fill:none; stroke:#131815; stroke-width:77; stroke-linecap:round; stroke-linejoin:round; opacity:.55; }
+.boot-track { fill:none; stroke:#363d37; stroke-width:63; stroke-linecap:round; stroke-linejoin:round; }
+.boot-route-line { fill:none; stroke:url(#boot-path); stroke-width:46; stroke-linecap:round; stroke-linejoin:round; }
+.boot-map-markers circle { fill:#fff0c1; stroke:#bd8f4f; stroke-width:4; filter:drop-shadow(0 0 7px #ffd77d90); }
+.boot-sparkles { fill:#f5d890; stroke:#f5d890; opacity:.6; }
+.boot-sparkles circle:nth-child(2n) { fill:#8ed8ca; stroke:#8ed8ca; }
+.boot-bloon { stroke:#fff5df; stroke-width:1.5; filter:drop-shadow(0 4px 6px #0005); }
+.boot-bloon-red { fill:#f06b74; }
+.boot-bloon-blue { fill:#58b8e9; }
+.boot-bloon-green { fill:#80c96d; }
+.boot-bloon-violet { fill:#aa80e9; }
+.boot-bloon-shine { fill:#fff8e7; stroke:none; opacity:.8; }
+.boot-tower-shadow { fill:#080a09; opacity:.38; filter:blur(5px); }
+.boot-tower-platform { fill:#535d50; stroke:#899477; stroke-width:2; }
+.boot-tower-platform-side { fill:#343e37; stroke:#73816d; stroke-width:1.5; }
+.boot-tower-pad { fill:url(#boot-platform); stroke:#9aa17b; stroke-width:2; }
+.boot-tower-body { fill:#e1a947; stroke:#ffe2a0; stroke-width:2; filter:drop-shadow(0 5px 5px #10120f70); }
+.boot-tower-body circle { fill:#f1c46a; }
+.boot-tower-barrel { fill:#ecd49a; stroke:#fff1c9; stroke-width:1.5; transform-box:fill-box; transform-origin:50% 100%; }
+.boot-tower-barrel circle { fill:#8d6c46; stroke:#ffe7ae; stroke-width:2; }
+.boot-tower-core { fill:#fff2c1; stroke:#d8a545; stroke-width:2; }
+.boot-tower-leaf { fill:#8bcc74; stroke:#d8efa0; stroke-width:1.5; }
+.boot-impact { fill:none; stroke:#fff1c3; stroke-width:3; stroke-linecap:round; opacity:0; filter:drop-shadow(0 0 8px #ffce6c); }
+.boot-shot { fill:#fff4be; stroke:#ffc45a; stroke-width:2; opacity:0; filter:drop-shadow(0 0 8px #ffc45a); }
+.boot-scene-caption { display:flex; align-items:center; gap:10px; width:max-content; margin:-8px auto 0; color:#a4a59c; font-size:9px; font-weight:700; letter-spacing:.17em; }
+.boot-scene-dot { width:6px; height:6px; border-radius:50%; background:#8cd5a4; box-shadow:0 0 12px #8cd5a4a0; }
+.boot-scene-caption-line { width:34px; height:1px; background:linear-gradient(90deg,#b98749,#666b5d); }
+.boot-scene-caption span:last-child { color:#d8bb78; }
+.boot-error .boot-scene { opacity:.45; filter:grayscale(.45); }
+@media(max-width:980px) { .boot-layout { grid-template-columns:minmax(300px,.9fr) minmax(330px,1fr); width:calc(100vw - 52px); gap:24px; } }
+@media(max-width:700px) { .boot-layout { display:flex; flex-direction:column; align-items:stretch; width:min(460px,calc(100vw - 44px)); gap:0; } .boot-scene { width:min(100%,390px); align-self:center; margin-top:-18px; } .boot-content { padding:10px 0; } .boot-emblem { width:68px; height:68px; margin-bottom:15px; } .boot-emblem img { width:39px; height:39px; } .boot-description { margin-bottom:20px; } .boot-footer { margin-top:16px; } }
 .sidebar { width:212px; flex:0 0 212px; padding:24px 12px 16px; display:flex; flex-direction:column; border-right:1px solid var(--line); background:var(--sidebar); }
 .brand { display:flex; align-items:center; gap:10px; padding:0 12px 30px; }
 .brand img { width:32px; height:32px; object-fit:contain; }

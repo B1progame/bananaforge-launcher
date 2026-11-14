@@ -13,19 +13,55 @@
       <div class="boot-grain" aria-hidden="true"></div>
       <div class="boot-glow boot-glow-one" aria-hidden="true"></div>
       <div class="boot-glow boot-glow-two" aria-hidden="true"></div>
-      <div class="boot-content">
-        <div class="boot-emblem" aria-hidden="true">
-          <span class="boot-orbit boot-orbit-outer"></span><span class="boot-orbit boot-orbit-inner"></span>
-          <span class="boot-orbit-dot"></span><span class="boot-emblem-backdrop"></span>
-          <img src="../assets/bananaforge.png" alt="" />
+      <div class="boot-layout">
+        <div class="boot-content">
+          <div class="boot-emblem" aria-hidden="true">
+            <span class="boot-orbit boot-orbit-outer"></span><span class="boot-orbit boot-orbit-inner"></span>
+            <span class="boot-orbit-dot"></span><span class="boot-emblem-backdrop"></span>
+            <img src="../assets/bananaforge.png" alt="" />
+          </div>
+          <div class="boot-brand-row"><span class="boot-eyebrow">BANANAFORGE <i></i> BTD6 WORKSPACE</span><span class="boot-version">LOCAL · READYING</span></div>
+          <h1 id="bootTitle">Your next run,<br><span>is taking shape.</span></h1>
+          <p class="boot-description">Lining up your profiles, mods, and game setup.</p>
+          <div class="boot-progress-track" aria-hidden="true"><span class="boot-progress-fill" id="bootProgressFill"></span><span class="boot-progress-glint"></span></div>
+          <div class="boot-status-row"><span class="boot-status-dot"></span><span id="bootStatusText">Opening your local workspace</span><span class="boot-loading-dots" aria-hidden="true"><i></i><i></i><i></i></span></div>
+          <button class="secondary boot-retry" id="bootRetry" type="button" hidden>Retry workspace loading</button>
+          <div class="boot-footer"><span>PROFILES</span><i></i><span>MODS</span><i></i><span>GAME LOGS</span></div>
         </div>
-        <div class="boot-brand-row"><span class="boot-eyebrow">BANANAFORGE <i></i> BTD6 WORKSPACE</span><span class="boot-version">LOCAL · READYING</span></div>
-        <h1 id="bootTitle">Your next run,<br><span>being prepared.</span></h1>
-        <p class="boot-description">Gathering your profiles, mods, and game setup.</p>
-        <div class="boot-progress-track" aria-hidden="true"><span class="boot-progress-fill" id="bootProgressFill"></span><span class="boot-progress-glint"></span></div>
-        <div class="boot-status-row"><span class="boot-status-dot"></span><span id="bootStatusText">Opening your local workspace</span><span class="boot-loading-dots" aria-hidden="true"><i></i><i></i><i></i></span></div>
-        <button class="secondary boot-retry" id="bootRetry" type="button" hidden>Retry workspace loading</button>
-        <div class="boot-footer"><span>PROFILES</span><i></i><span>MODS</span><i></i><span>GAME LOGS</span></div>
+        <div class="boot-scene" aria-hidden="true">
+          <svg class="boot-motion-art" viewBox="0 0 640 500" role="presentation">
+            <defs>
+              <linearGradient id="boot-path" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#bf8239"/><stop offset=".55" stop-color="#e6b55b"/><stop offset="1" stop-color="#f1d58e"/></linearGradient>
+              <linearGradient id="boot-platform" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#353b39"/><stop offset="1" stop-color="#252927"/></linearGradient>
+              <filter id="boot-soft-glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="9"/></filter>
+            </defs>
+            <circle class="boot-scene-halo" cx="340" cy="245" r="200"/>
+            <circle class="boot-scene-ring boot-scene-ring-a" cx="340" cy="245" r="173"/>
+            <circle class="boot-scene-ring boot-scene-ring-b" cx="340" cy="245" r="216"/>
+            <path class="boot-track-shadow" d="M30 430 C125 421 126 355 205 352 C286 349 250 273 335 262 C427 250 389 177 472 168 C542 160 535 112 610 76"/>
+            <path class="boot-track" d="M30 430 C125 421 126 355 205 352 C286 349 250 273 335 262 C427 250 389 177 472 168 C542 160 535 112 610 76"/>
+            <path id="bootMapRoute" class="boot-route-line" d="M30 430 C125 421 126 355 205 352 C286 349 250 273 335 262 C427 250 389 177 472 168 C542 160 535 112 610 76"/>
+            <g class="boot-map-markers"><circle cx="205" cy="352" r="5"/><circle cx="335" cy="262" r="5"/><circle cx="472" cy="168" r="5"/></g>
+            <g class="boot-sparkles"><circle cx="137" cy="171" r="2"/><circle cx="528" cy="302" r="2.5"/><circle cx="230" cy="108" r="2"/><path d="M548 222v12m-6-6h12M106 266v10m-5-5h10"/></g>
+            <g class="boot-bloon boot-bloon-red"><ellipse cy="-7" rx="14" ry="18"/><path d="M-4 9 0 17 4 9"/><ellipse class="boot-bloon-shine" cx="-5" cy="-12" rx="3" ry="5"/></g>
+            <g class="boot-bloon boot-bloon-blue"><ellipse cy="-7" rx="13" ry="17"/><path d="M-4 8 0 16 4 8"/><ellipse class="boot-bloon-shine" cx="-5" cy="-12" rx="3" ry="5"/></g>
+            <g class="boot-bloon boot-bloon-green"><ellipse cy="-7" rx="12" ry="16"/><path d="M-4 8 0 15 4 8"/><ellipse class="boot-bloon-shine" cx="-4" cy="-12" rx="2.8" ry="4.5"/></g>
+            <g class="boot-bloon boot-bloon-violet"><ellipse cy="-7" rx="12" ry="16"/><path d="M-4 8 0 15 4 8"/><ellipse class="boot-bloon-shine" cx="-4" cy="-12" rx="2.8" ry="4.5"/></g>
+            <g class="boot-tower" transform="translate(408 350)">
+              <ellipse class="boot-tower-shadow" cy="26" rx="72" ry="20"/>
+              <path class="boot-tower-platform" d="M-63 5 0-18 63 5 0 28Z"/>
+              <path class="boot-tower-platform-side" d="M-63 5v14L0 43V28ZM63 5v14L0 43V28Z"/>
+              <ellipse class="boot-tower-pad" cy="1" rx="52" ry="17"/>
+              <g class="boot-tower-body"><path d="M-19 2v-27q0-12 19-14 19 2 19 14V2Z"/><circle cy="-27" r="20"/></g>
+              <g class="boot-tower-barrel"><rect x="-6" y="-64" width="12" height="40" rx="5"/><circle cy="-61" r="8"/></g>
+              <circle class="boot-tower-core" cy="-27" r="7"/>
+              <path class="boot-tower-leaf" d="M16-30q17-18 25-10-7 17-22 17M-16-31q-17-17-23-9 7 16 21 17"/>
+            </g>
+            <g class="boot-impact" transform="translate(336 260)"><circle r="12"/><path d="M0-30v-10m0 80V30m-30-30h-10m80 0H30m-21-21-7-7m-14 56-7 7m42 0 7 7M-21-21l-7-7"/></g>
+            <circle class="boot-shot" r="6"/>
+          </svg>
+          <div class="boot-scene-caption"><span class="boot-scene-dot"></span><span>MAP PATH READY</span><span class="boot-scene-caption-line"></span><span>ROUND 01</span></div>
+        </div>
       </div>
     </section>
     <div id="app" aria-hidden="true" inert>

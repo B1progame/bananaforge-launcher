@@ -40,19 +40,62 @@ function setBootProgress(percent, message) {
 function startBootMotion() {
   const screen = $('#bootScreen');
   if (!screen) return;
+  for (const motion of bootMotions) motion?.kill();
+  bootMotions = [];
   bootStartedAt = performance.now();
-  if (reduceMotion) return;
+  const route = $('#bootMapRoute');
+  const balloons = $$('.boot-bloon');
+  if (reduceMotion) {
+    if (route) {
+      const length = route.getTotalLength();
+      balloons.forEach((balloon, index) => {
+        const point = route.getPointAtLength(length * (0.23 + index * 0.13));
+        gsap.set(balloon, { x: point.x, y: point.y, yPercent: 0 });
+      });
+    }
+    gsap.set('.boot-shot', { x: 365, y: 273, autoAlpha: 0.85 });
+    gsap.set('.boot-impact', { scale: 0.65, autoAlpha: 0.65, transformOrigin: '336px 260px' });
+    gsap.set('.boot-content, .boot-scene, .boot-emblem', { autoAlpha: 1, clearProps: 'transform' });
+    return;
+  }
   const intro = gsap.timeline({ defaults: { ease: 'power3.out' } });
   intro.fromTo('.boot-emblem', { autoAlpha: 0, scale: 0.78, y: 12 }, { autoAlpha: 1, scale: 1, y: 0, duration: 0.5 })
     .fromTo('.boot-brand-row, .boot-content h1, .boot-description, .boot-progress-track, .boot-status-row, .boot-footer',
       { autoAlpha: 0, y: 9 }, { autoAlpha: 1, y: 0, duration: 0.32, stagger: 0.055, clearProps: 'transform,opacity,visibility' }, '-=0.22');
+  const sceneIntro = gsap.fromTo('.boot-scene', { autoAlpha: 0, x: 24, scale: 0.97 }, { autoAlpha: 1, x: 0, scale: 1, duration: 0.72, ease: 'power3.out' });
   const orbit = gsap.timeline({ repeat: -1 });
   orbit.to('.boot-orbit-outer', { rotation: 360, duration: 15, ease: 'none' }, 0)
     .to('.boot-orbit-inner', { rotation: -360, duration: 11, ease: 'none' }, 0);
   const glow = gsap.to('.boot-emblem-backdrop', { scale: 1.14, autoAlpha: 0.75, duration: 1.8, repeat: -1, yoyo: true, ease: 'sine.inOut' });
   const dots = gsap.to('.boot-loading-dots i', { autoAlpha: 0.92, stagger: 0.17, duration: 0.34, repeat: -1, yoyo: true, ease: 'sine.inOut' });
   const glint = gsap.fromTo('.boot-progress-glint', { x: -48 }, { x: 430, duration: 1.55, repeat: -1, ease: 'sine.inOut' });
-  bootMotions = [intro, orbit, glow, dots, glint];
+  const scene = gsap.timeline({ repeat: -1, defaults: { ease: 'sine.inOut' } });
+  scene.to('.boot-scene-halo', { opacity: 0.2, duration: 1.7, yoyo: true, repeat: 1 })
+    .to('.boot-scene-ring-a', { rotation: 360, transformOrigin: '340px 245px', duration: 24, ease: 'none' }, 0)
+    .to('.boot-scene-ring-b', { rotation: -360, transformOrigin: '340px 245px', duration: 32, ease: 'none' }, 0)
+    .to('.boot-tower-core', { scale: 1.25, transformOrigin: 'center center', duration: 0.75, yoyo: true, repeat: 1 }, 0.8)
+    .to('.boot-tower-barrel', { rotation: 18, duration: 0.28, yoyo: true, repeat: 1, transformOrigin: '50% 100%' }, 1.18);
+  const routeMotions = balloons.map((balloon, index) => {
+    if (!route) return null;
+    const length = route.getTotalLength();
+    const runner = { distance: length * (index * 0.16) };
+    const placeOnRoute = () => {
+      const point = route.getPointAtLength(runner.distance % length);
+      const bob = Math.sin(runner.distance / length * Math.PI * 18 + index) * 3;
+      gsap.set(balloon, { x: point.x, y: point.y + bob });
+    };
+    placeOnRoute();
+    return gsap.to(runner, {
+      distance: length * (1 + index * 0.16), duration: 9 + index * 1.1, repeat: -1, ease: 'none', delay: index * 0.42,
+      onUpdate: placeOnRoute,
+    });
+  }).filter(Boolean);
+  const firing = gsap.timeline({ repeat: -1, repeatDelay: 0.7, delay: 0.35 });
+  firing.set('.boot-shot', { x: 408, y: 286, autoAlpha: 1, scale: 0.6 })
+    .to('.boot-shot', { x: 336, y: 260, scale: 1, duration: 0.38, ease: 'power2.in' })
+    .fromTo('.boot-impact', { scale: 0.35, autoAlpha: 0.95, transformOrigin: '336px 260px' }, { scale: 1.6, autoAlpha: 0, duration: 0.48, ease: 'power2.out' }, '-=0.05')
+    .set('.boot-shot', { autoAlpha: 0 });
+  bootMotions = [intro, sceneIntro, orbit, glow, dots, glint, scene, ...routeMotions, firing];
 }
 
 function showBootError(error) {
@@ -102,7 +145,7 @@ async function loadInitialWorkspace() {
     setBootProgress(86, 'Preparing your game and workspace views');
     if (!tabs.length) addTab();
     setBootProgress(100, `Ready when you are${appState?.profiles?.length ? ` · ${appState.profiles.length} profiles` : ''}`);
-    const minimumTime = reduceMotion ? 180 : 680;
+    const minimumTime = reduceMotion ? 180 : 1800;
     const remaining = Math.max(0, minimumTime - (performance.now() - bootStartedAt));
     if (remaining) await new Promise((resolve) => setTimeout(resolve, remaining));
     await leaveBootScreen();
