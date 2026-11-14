@@ -282,6 +282,153 @@ function githubModSourceReference(value, expectedAsset) {
   return { owner, repo, tag, asset: expectedAsset, repository: `${owner}/${repo}` };
 }
 
+function githubBranchModSourceReference(value, expectedAsset) {
+  let url;
+  try { url = new URL(value); } catch { return null; }
+  if (url.protocol !== 'https:' || !['github.com', 'www.github.com'].includes(url.hostname.toLowerCase())) return null;
+  let parts;
+  try { parts = url.pathname.split('/').filter(Boolean).map((part) => decodeURIComponent(part)); }
+  catch { return null; }
+  if (parts.length < 4 || !/^[\w.-]{1,100}$/.test(parts[0]) || !/^[\w.-]{1,100}$/.test(parts[1]) || !['tree', 'blob'].includes(parts[2])) return null;
+  const [owner, repo, mode, branch, ...pathParts] = parts;
+  if (!/^[\w.-]{1,100}$/.test(branch) || pathParts.some((part) => !part || part === '.' || part === '..' || part.includes('\\') || /[\u0000-\u001f]/.test(part))) return null;
+  const repoPath = pathParts.join('/');
+  if (mode === 'blob' && (!repoPath || path.posix.basename(repoPath).toLowerCase() !== String(expectedAsset || '').toLowerCase())) return null;
+  if (repoPath && /\.dll$/i.test(path.posix.basename(repoPath)) && path.posix.basename(repoPath).toLowerCase() !== String(expectedAsset || '').toLowerCase()) return null;
+  return { repository: `${owner}/${repo}`, branch, repoPath, asset: expectedAsset };
+}
+
+async function githubContentsJson(repository, repoPath, branch, signal) {
+  const encodedPath = repoPath ? `/${repoPath.split('/').map(encodeURIComponent).join('/')}` : '';
+  const url = new URL(`https://api.github.com/repos/${repository}/contents${encodedPath}`);
+  url.searchParams.set('ref', branch);
+  const response = await fetch(url, {
+    headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'BananaForge/0.3.33' },
+    signal: AbortSignal.any([signal, AbortSignal.timeout(25000)])
+  });
+  if (!response.ok) throw githubResponseError(response, `checking ${repository}'s ${branch} source`);
+  return response.json();
+}
+
+async function resolveGitHubBranchModAsset(reference, expectedName, signal) {
+  if (!reference || !/^[\w.-]{1,100}\/[\w.-]{1,100}$/.test(reference.repository) || !/^[\w.-]{1,100}$/.test(reference.branch)) throw new Error('The GitHub branch source is invalid.');
+  const requestedPath = String(reference.repoPath || '');
+  if (requestedPath.split('/').some((part) => part === '.' || part === '..' || part.includes('\\') || /[\u0000-\u001f]/.test(part))) throw new Error('The GitHub source path is invalid.');
+  const data = await githubContentsJson(reference.repository, requestedPath, reference.branch, signal);
+  let item;
+  if (Array.isArray(data)) {
+    item = data.find((entry) => entry.type === 'file' && entry.name.toLowerCase() === expectedName.toLowerCase());
+    if (!item) throw new Error(`The ${requestedPath || 'repository'} folder has no ${expectedName} file.`);
+  } else if (data?.type === 'file') {
+    item = data;
+  } else {
+    throw new Error('GitHub did not return a file or folder for that source URL.');
+  }
+  if (item.name.toLowerCase() !== expectedName.toLowerCase() || item.type !== 'file' || !/^[a-f0-9]{40}$/i.test(item.sha || '') || !Number.isFinite(Number(item.size)) || Number(item.size) < 2 || Number(item.size) > 256 * 1024 * 1024) {
+    throw new Error(`The GitHub source does not contain a valid ${expectedName} DLL.`);
+  }
+  const downloadUrl = new URL(item.download_url || '');
+  if (downloadUrl.protocol !== 'https:' || downloadUrl.hostname.toLowerCase() !== 'raw.githubusercontent.com') throw new Error('GitHub returned an unexpected branch-file download URL.');
+  return { repository: reference.repository, branch: reference.branch, asset: expectedName, repoPath: item.path, blobSha: item.sha, size: Number(item.size), downloadUrl: downloadUrl.href,
+    url: `https://github.com/${reference.repository}/blob/${encodeURIComponent(reference.branch)}/${item.path.split('/').map(encodeURIComponent).join('/')}` };
+}
+
+async function findGitHubBranchModAsset(reference, names, signal) {
+  const accepted = [...new Set(names.filter((name) => typeof name === 'string' && path.basename(name) === name && /\.dll$/i.test(name)).map((name) => name.toLowerCase()))];
+  if (!reference || !accepted.length) return null;
+  const url = `https://api.github.com/repos/${reference.repository}/git/trees/${encodeURIComponent(reference.branch)}?recursive=1`;
+  const response = await fetch(url, { headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'BananaForge/0.3.33' }, signal: AbortSignal.any([signal, AbortSignal.timeout(25000)]) });
+  if (!response.ok) throw githubResponseError(response, `searching ${reference.repository}'s branch for a mod DLL`);
+  const tree = await response.json();
+  const files = (Array.isArray(tree.tree) ? tree.tree : []).filter((entry) => entry.type === 'blob' && accepted.includes(path.posix.basename(entry.path || '').toLowerCase()));
+  files.sort((a, b) => {
+    const aExact = path.posix.basename(a.path).toLowerCase() === accepted[0] ? 0 : 1;
+    const bExact = path.posix.basename(b.path).toLowerCase() === accepted[0] ? 0 : 1;
+    return aExact - bExact || a.path.length - b.path.length;
+  });
+  for (const file of files) {
+    const expectedName = path.posix.basename(file.path);
+    try { return await resolveGitHubBranchModAsset({ ...reference, repoPath: file.path }, expectedName, signal); }
+    catch (error) { if (/rate limit/i.test(error.message || String(error))) throw error; }
+  }
+  return null;
+}
+
+async function verifyGitHubBranchModAsset(asset, signal) {
+  const response = await fetch(asset.downloadUrl, {
+    headers: { Range: 'bytes=0-1', 'User-Agent': 'BananaForge/0.3.33' },
+    signal: AbortSignal.any([signal, AbortSignal.timeout(30000)])
+  });
+  const finalUrl = new URL(response.url);
+  if (!response.ok || finalUrl.protocol !== 'https:' || finalUrl.hostname.toLowerCase() !== 'raw.githubusercontent.com' || !response.body) throw new Error(`Could not verify ${asset.asset} from the GitHub branch (HTTP ${response.status}).`);
+  const reader = response.body.getReader();
+  let prefix = Buffer.alloc(0);
+  try {
+    while (prefix.length < 2) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      prefix = Buffer.concat([prefix, Buffer.from(value)]);
+    }
+  } finally { await reader.cancel().catch(() => {}); }
+  if (prefix.subarray(0, 2).toString('ascii') !== 'MZ') throw new Error(`The branch file ${asset.repoPath} is not a Windows DLL.`);
+  return asset;
+}
+
+async function findBtdModHelperCatalogAsset(searchTerm, expectedName, signal) {
+  const repository = 'Timotheeee/btd6_mods', branch = 'master';
+  const catalogUrl = `https://raw.githubusercontent.com/${repository}/${branch}/ModHelperMods.json`;
+  const response = await fetch(catalogUrl, { headers: { 'User-Agent': 'BananaForge/0.3.33' }, signal: AbortSignal.any([signal, AbortSignal.timeout(20000)]) });
+  if (!response.ok) throw new Error(`BTD Mod Helper's project catalog returned HTTP ${response.status}.`);
+  const entries = await response.json();
+  if (!Array.isArray(entries)) throw new Error('BTD Mod Helper returned an invalid project catalog.');
+  const normalized = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const match = entries.find((entry) => normalized(entry) === normalized(searchTerm));
+  if (!match) return null;
+  const source = githubBranchModSourceReference(`https://github.com/${repository}/tree/${branch}/${encodeURIComponent(match)}`, expectedName);
+  const asset = await resolveGitHubBranchModAsset(source, expectedName, signal);
+  await verifyGitHubBranchModAsset(asset, signal);
+  return { repository, title: `${repository} · ${match}`, description: 'Listed in the BTD Mod Helper project catalog. The branch DLL was verified before it was offered.',
+    source: 'BTD Mod Helper catalog', sourceType: 'github-branch-file', branch, sourcePath: asset.repoPath, url: asset.url,
+    version: `${branch} · ${asset.blobSha.slice(0, 7)}`, asset: asset.asset, downloadUrl: asset.downloadUrl, verified: true };
+}
+
+async function downloadGitHubBranchModAsset(asset, root, signal, onProgress = () => {}) {
+  const response = await fetch(asset.downloadUrl, { signal: AbortSignal.any([signal, AbortSignal.timeout(10 * 60 * 1000)]) });
+  const finalUrl = new URL(response.url);
+  if (!response.ok || !response.body || finalUrl.protocol !== 'https:' || finalUrl.hostname.toLowerCase() !== 'raw.githubusercontent.com') throw new Error(`The GitHub branch DLL download failed (HTTP ${response.status}).`);
+  const destination = path.join(root, crypto.randomUUID(), asset.asset);
+  await fs.promises.mkdir(path.dirname(destination), { recursive: true });
+  const temporary = `${destination}.part`;
+  const handle = await fs.promises.open(temporary, 'wx');
+  const hash = crypto.createHash('sha256');
+  const gitBlobHash = crypto.createHash('sha1').update(`blob ${asset.size}\0`);
+  let received = 0, lastUpdate = 0;
+  const total = Number(response.headers.get('content-length')) || asset.size;
+  try {
+    for await (const chunk of response.body) {
+      signal.throwIfAborted();
+      received += chunk.length;
+      if (received > 256 * 1024 * 1024) throw new Error('The GitHub branch DLL exceeds the 256 MB limit.');
+      hash.update(chunk); gitBlobHash.update(chunk);
+      let offset = 0;
+      while (offset < chunk.length) { const result = await handle.write(chunk, offset, chunk.length - offset); offset += result.bytesWritten; }
+      if (Date.now() - lastUpdate > 100) { onProgress({ received, total }); lastUpdate = Date.now(); }
+    }
+    await handle.close();
+    const digest = hash.digest('hex');
+    if (received !== asset.size || gitBlobHash.digest('hex') !== asset.blobSha) throw new Error('The GitHub branch file changed while downloading; the mod was not installed. Check again.');
+    const file = await fs.promises.open(temporary, 'r');
+    const magic = Buffer.alloc(2);
+    try { await file.read(magic, 0, 2, 0); } finally { await file.close(); }
+    if (magic.toString('ascii') !== 'MZ') throw new Error(`The downloaded ${asset.asset} is not a Windows DLL.`);
+    signal.throwIfAborted();
+    await fs.promises.rename(temporary, destination);
+    onProgress({ received, total: received });
+    return { path: destination, name: asset.asset, version: `${asset.branch} · ${asset.blobSha.slice(0, 7)}`, sha256: digest, url: asset.url,
+      repository: asset.repository, sourceType: 'github-branch-file', branch: asset.branch, sourcePath: asset.repoPath, upstreamBlobSha: asset.blobSha };
+  } finally { await handle.close().catch(() => {}); await fs.promises.rm(temporary, { force: true }); }
+}
+
 async function latestRelease(repository, signal, { forceRefresh = false } = {}) {
   if (!/^[\w.-]+\/[\w.-]+$/.test(repository)) throw new Error('The tracked mod release source is invalid.');
   const cacheKey = `release:${repository.toLowerCase()}`;
@@ -427,6 +574,13 @@ async function searchModUpdateSources(name, signal, searchTerm = '') {
   const attemptedRepositories = new Set();
   let repositoriesSeen = 0;
   const verifiedByRepo = new Map();
+  try {
+    const catalogResult = await findBtdModHelperCatalogAsset(queryTerm, name, signal);
+    if (catalogResult) return { file: name, results: [catalogResult], searched: ['BTD Mod Helper project catalog', 'GitHub releases and branch sources'], note: '' };
+  } catch (error) {
+    if (/rate limit/i.test(error.message || String(error))) errors.push(error.message || String(error));
+    else if (signal.aborted) throw error;
+  }
   for (const query of queries) {
     const githubUrl = new URL('https://api.github.com/search/repositories');
     githubUrl.searchParams.set('q', query);
@@ -460,11 +614,23 @@ async function searchModUpdateSources(name, signal, searchTerm = '') {
       const verified = await Promise.all(prioritized.map(async (item) => {
         try {
           const declaredDll = await modHelperDllName(item.full_name, item.default_branch, timeoutSignal(12000));
-          const release = await latestReleaseAssetMatching(item.full_name, [name, declaredDll], timeoutSignal(20000));
-          return {
-            repository: item.full_name, title: item.full_name, description: item.description || '', source: 'GitHub',
-            url: item.html_url, version: release.tag, asset: release.asset.name, downloadUrl: release.url, verified: true
-          };
+          try {
+            const release = await latestReleaseAssetMatching(item.full_name, [name, declaredDll], timeoutSignal(20000));
+            return {
+              repository: item.full_name, title: item.full_name, description: item.description || '', source: 'GitHub release', sourceType: 'github-release',
+              url: release.url, version: release.tag, asset: release.asset.name, downloadUrl: release.url, verified: true
+            };
+          } catch (releaseError) {
+            if (/rate limit/i.test(releaseError.message || String(releaseError))) throw releaseError;
+            const branch = /^[\w.-]{1,100}$/.test(item.default_branch || '') ? item.default_branch : 'master';
+            const branchSource = githubBranchModSourceReference(`https://github.com/${item.full_name}/tree/${encodeURIComponent(branch)}`, name);
+            const branchAsset = await findGitHubBranchModAsset(branchSource, [name, declaredDll], timeoutSignal(20000));
+            if (!branchAsset) throw releaseError;
+            await verifyGitHubBranchModAsset(branchAsset, timeoutSignal(20000));
+            return { repository: item.full_name, title: `${item.full_name} · ${branchAsset.repoPath}`, description: item.description || 'Verified DLL found in the repository branch.',
+              source: 'GitHub branch', sourceType: 'github-branch-file', branch: branchAsset.branch, sourcePath: branchAsset.repoPath, url: branchAsset.url,
+              version: `${branchAsset.branch} · ${branchAsset.blobSha.slice(0, 7)}`, asset: branchAsset.asset, downloadUrl: branchAsset.downloadUrl, verified: true };
+          }
         } catch (error) { releaseErrors.push(`${item.full_name}: ${error.message || error}`); return null; }
       }));
       for (const item of verified.filter(Boolean)) verifiedByRepo.set(item.repository.toLowerCase(), item);
@@ -481,7 +647,7 @@ async function searchModUpdateSources(name, signal, searchTerm = '') {
   const reason = rateLimit
     ? rateLimit
     : repositoriesSeen && releaseErrors.length
-      ? `Found ${repositoriesSeen} possible repositories, but none exposed a compatible DLL in the latest release. ${releaseErrors.slice(0, 2).join(' ')}`
+      ? `Found ${repositoriesSeen} possible repositories, but none exposed a compatible DLL in a release or branch source. ${releaseErrors.slice(0, 2).join(' ')}`
       : `No matching GitHub repository was found for ${name}. Try the mod’s display name or paste its GitHub URL.`;
   return {
     file: name, results, searched: ['GitHub / BTD Mod Helper sources'],
@@ -736,6 +902,19 @@ async function downloadPackage(id, root, signal, onProgress = () => {}) {
 }
 
 async function updateTrackedMod(source, root, signal, onProgress = () => {}, releaseCache = new Map(), forceRefresh = false) {
+  if (source?.sourceType === 'github-branch-file') {
+    const reference = { repository: source.repository, branch: source.branch, repoPath: source.sourcePath || '' };
+    const asset = await resolveGitHubBranchModAsset(reference, source.asset, signal);
+    if (source.versionVerified === true && source.upstreamBlobSha === asset.blobSha) {
+      return { upToDate: true, version: `${asset.branch} · ${asset.blobSha.slice(0, 7)}`, sha256: source.sha256, upstreamBlobSha: asset.blobSha };
+    }
+    const result = await downloadGitHubBranchModAsset(asset, root, signal, onProgress);
+    if (source.sha256 && result.sha256 === source.sha256) {
+      await fs.promises.rm(result.path, { force: true });
+      return { upToDate: true, version: result.version, sha256: result.sha256, upstreamBlobSha: result.upstreamBlobSha };
+    }
+    return result;
+  }
   const reference = githubModSourceReference(source?.url, source?.asset);
   if (!reference) throw new Error('Automatic updates require a direct GitHub release DLL download.');
   if (source.repository && source.repository.toLowerCase() !== reference.repository.toLowerCase()) throw new Error('The tracked mod release source changed.');
@@ -816,4 +995,4 @@ function validateBundle(bundle) {
   return { name: String(bundle.name || 'Imported profile').slice(0, 60), description: String(bundle.description || '').slice(0, 240), accent: bundle.accent, mods };
 }
 
-module.exports = { separateRoots, copyManagedGame, syncNewerGameFiles, syncSteamBuild, alignManagedGameTimestamps, readLogTail, downloadPackage, updateTrackedMod, githubReleaseReference, githubModSourceReference, latestReleaseAsset, latestReleaseAssetMatching, modHelperDllName, searchModUpdateSources, discoverThunderstoreModSource, discoverGitHubModSource, packageSources, validateBundle };
+module.exports = { separateRoots, copyManagedGame, syncNewerGameFiles, syncSteamBuild, alignManagedGameTimestamps, readLogTail, downloadPackage, updateTrackedMod, githubReleaseReference, githubModSourceReference, githubBranchModSourceReference, resolveGitHubBranchModAsset, verifyGitHubBranchModAsset, latestReleaseAsset, latestReleaseAssetMatching, modHelperDllName, searchModUpdateSources, discoverThunderstoreModSource, discoverGitHubModSource, packageSources, validateBundle };

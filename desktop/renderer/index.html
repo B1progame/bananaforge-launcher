@@ -246,15 +246,15 @@
       <form id="modSourceForm">
         <span class="eyebrow">AUTOMATIC UPDATES</span>
         <h2 id="modSourceTitle">Find the real update source</h2>
-        <p id="modSourceDescription">Search the GitHub projects used by BTD Mod Helper. BananaForge checks each project’s declared DLL and latest release before showing a source.</p>
+        <p id="modSourceDescription">Search BTD Mod Helper’s project catalog and GitHub releases. BananaForge verifies release assets and DLLs committed to project branches before tracking.</p>
         <label for="modSourceSearchName">Mod or repository name</label>
         <input id="modSourceSearchName" type="search" autocomplete="off" placeholder="For example, Ultimate Crosspathing">
         <button class="secondary source-search-button" id="searchModSources" type="button">Search BTD Mod Helper sources</button>
         <p class="source-search-status" id="sourceSearchStatus" role="status" aria-live="polite"></p>
         <div class="source-search-results" id="sourceSearchResults"></div>
         <details class="source-manual-entry"><summary>Have the author’s GitHub URL?</summary>
-        <label for="modSourceUrl">GitHub project or release URL</label>
-        <input id="modSourceUrl" type="url" placeholder="https://github.com/owner/repo">
+        <label for="modSourceUrl">GitHub project, mod folder, or release URL</label>
+        <input id="modSourceUrl" type="url" placeholder="https://github.com/owner/repo/tree/main/ModFolder">
         <button class="primary" id="saveModSource" type="submit">Verify and track</button></details>
         <div class="dialog-actions"><button class="secondary" id="cancelModSource" type="button">Cancel</button></div>
       </form>

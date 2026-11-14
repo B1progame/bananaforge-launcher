@@ -45,7 +45,7 @@ contextBridge.exposeInMainWorld("bananaforge", {
   cancelDownload: (id) => ipcRenderer.invoke('downloads:cancel', id),
   checkModUpdates: (profileId) => ipcRenderer.invoke('mods:auto-update', profileId),
   searchModUpdateSources: (profileId, name, searchTerm) => ipcRenderer.invoke('mods:search-update-sources', profileId, name, searchTerm),
-  trackDiscoveredModUpdates: (profileId, name, repository, asset) => ipcRenderer.invoke('mods:track-discovered-update', profileId, name, repository, asset),
+  trackDiscoveredModUpdates: (profileId, name, repository, asset, sourceType, branch, sourcePath) => ipcRenderer.invoke('mods:track-discovered-update', profileId, name, repository, asset, sourceType, branch, sourcePath),
   trackModUpdates: (profileId, name, releaseUrl) => ipcRenderer.invoke('mods:track-update', profileId, name, releaseUrl),
   trackKnownModUpdates: (profileId, name) => ipcRenderer.invoke('mods:track-known-update', profileId, name),
   disableIncompatibleMod: (profileId, name) => ipcRenderer.invoke('mods:disable-incompatible', profileId, name),

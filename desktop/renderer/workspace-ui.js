@@ -215,7 +215,7 @@ function wsRenderProfileMods() {
         toast(`${result.file} is tracking ${result.repository} (${result.version}).`);
       });
       wsTrackingMod = mod.file;
-      $('#modSourceDescription').textContent = `Search the GitHub projects used by BTD Mod Helper for ${mod.file}. The project’s declared DLL and latest release are checked before a source is shown.`;
+      $('#modSourceDescription').textContent = `Search BTD Mod Helper’s project catalog and GitHub releases for ${mod.file}. Release assets and DLLs committed to a project branch are checked before tracking.`;
       $('#modSourceSearchName').value = mod.file.replace(/\.dll$/i, '');
       $('#modSourceUrl').value = '';
       $('#sourceSearchStatus').textContent = '';
@@ -333,13 +333,14 @@ document.addEventListener('DOMContentLoaded', () => {
           const card = document.createElement('article'); card.className = 'source-result';
           const details = document.createElement('div'); details.className = 'source-result-copy';
           const title = document.createElement('strong'); title.textContent = candidate.title;
-          const meta = document.createElement('small'); meta.textContent = `${candidate.source} · ${candidate.repository} · ${candidate.version} · release file ${candidate.asset}`;
+          const sourceFile = candidate.sourceType === 'github-branch-file' ? `branch file ${candidate.sourcePath || candidate.asset}` : `release file ${candidate.asset}`;
+          const meta = document.createElement('small'); meta.textContent = `${candidate.source} · ${candidate.repository} · ${candidate.version} · ${sourceFile}`;
           const description = document.createElement('p'); description.textContent = candidate.description || 'No project description provided.';
           details.append(title, meta, description);
           const choose = document.createElement('button'); choose.type = 'button'; choose.className = 'primary'; choose.textContent = 'Track release';
           choose.onclick = async () => {
             choose.disabled = true; status.textContent = `Verifying ${candidate.repository} again…`;
-            const result = await safe(() => api.trackDiscoveredModUpdates(wsDetail.profile.id, wsTrackingMod, candidate.repository, candidate.asset));
+            const result = await safe(() => api.trackDiscoveredModUpdates(wsDetail.profile.id, wsTrackingMod, candidate.repository, candidate.asset, candidate.sourceType, candidate.branch, candidate.sourcePath));
             if (!result) { choose.disabled = false; return; }
             const profileId = wsDetail.profile.id; $('#modSourceDialog').close(); wsTrackingMod = null;
             await refreshState(); await showProfileDetails(profileId);
