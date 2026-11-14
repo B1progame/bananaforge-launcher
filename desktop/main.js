@@ -744,14 +744,34 @@ async function launchVerifiedBananaForgeUpdate(file, version) {
   if (process.platform !== 'win32' || !app.isPackaged) return false;
   const appExecutable = process.execPath;
   const psQuote = (value) => `'${String(value).replace(/'/g, "''")}'`;
-  const setupPath = path.resolve(file), installDir = path.dirname(appExecutable);
-  const command = `$ErrorActionPreference='Stop'; Start-Sleep -Seconds 2; $setup=${psQuote(setupPath)}; $app=${psQuote(appExecutable)}; $proc=Start-Process -FilePath $setup -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /AUTOMATICUPDATE' -Wait -PassThru; if ($proc.ExitCode -eq 0) { Start-Process -FilePath $app -WorkingDirectory ${psQuote(installDir)} };`;
-  const runner = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-EncodedCommand', Buffer.from(command, 'utf16le').toString('base64')], { detached: true, windowsHide: true, stdio: 'ignore' });
-  runner.once('error', (error) => launcherLog(`Could not start the BananaForge installer: ${error.message}`));
+  const setupPath = path.resolve(file);
+  const progressScript = path.join(__dirname, 'update-progress.ps1');
+  const script = await fs.promises.readFile(progressScript, 'utf8');
+  const command = [
+    `$script:SetupPath=${psQuote(setupPath)}`,
+    `$script:AppPath=${psQuote(appExecutable)}`,
+    `$script:ParentProcessId=${process.pid}`,
+    `$script:UpdateVersion=${psQuote(version)}`,
+    "$script:InstallArguments='/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /AUTOMATICUPDATE'",
+    script
+  ].join(';\n');
+  const runner = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-STA', '-WindowStyle', 'Hidden', '-EncodedCommand', Buffer.from(command, 'utf16le').toString('base64')], { detached: true, windowsHide: true, stdio: 'ignore' });
+  await new Promise((resolve, reject) => {
+    runner.once('spawn', resolve);
+    runner.once('error', reject);
+  });
   runner.unref();
   updateEvent({ status: 'installing', version, message: `BananaForge ${version} is ready. Restarting to install the update…` });
   launcherLog(`Launching verified BananaForge ${version} installer.`);
-  setTimeout(() => app.quit(), 2200);
+  setTimeout(() => {
+    if (runner.exitCode !== null) {
+      const message = `The update progress window exited before installation started (PowerShell exit code ${runner.exitCode}). BananaForge stayed open.`;
+      launcherLog(message);
+      updateEvent({ status: 'failed', version, message });
+      return;
+    }
+    app.quit();
+  }, 900);
   return true;
 }
 
